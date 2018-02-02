@@ -1,0 +1,17 @@
+1. admin 程序初始化各个消息队列与共享内存,并加载chain文件夹下的所有侧链程序;
+
+2. server进程运行并加载so文件，so的配置文件;
+
+3. 命令: load name, stop name, shutdown now; show server; load all
+
+width-char[1]
+width-type-char[1]
+
+shareMemory:
+node_header |nodex_id(4),name(HNAME),len(4),status(1)		|
+------------|-----------------------------------------------|
+block_header|block_id(4),ctime(4),mtime(4),len(4),char[MAX_SHM_BLOCK_LEN] 	|
+			|
+------------|
+
+

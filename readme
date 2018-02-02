@@ -1,0 +1,52 @@
+What is huibase ?
+==========
+huibase a basic static c++ library created by TomHui at 2011. 
+
+
+Conclusion:
+==========
+1> All classes needs to declare default, copy, move construction functions and assignment functions
+as far as possible;
+2> Check the virtual property before you inherit a class;
+
+
+Modify History
+==========
+Add network address and socket component. TomHui@Sun Sep 17 CST 2017.
+HCAddr is basic class for all address classes, and HCSocket is base
+class for all socket classes.
+
+Add basic pthread component. TomHui@Thu Sep 21 CST 2017.
+Include: pthread_attr_t, pthread_t, pthread_mutex_t, pthread_mutex_attr_t, pthread_cond_t, pthread_cond_attr_t;
+
+Fix the Rtrim function. TomHui@Mon Sep 25 CST 2017.
+
+Fix the HCSocket::GetLocalIp function. TomHui@Fri Sep 29 CST 2017.
+//TODO local ip; proc number in 'ps aux'
+
+Oct 09 2017 Add HCMq. TomHui@Mon Oct 09 CST 2017.
+shareMemory:
+node_header |nodex_id(4),name(HNAME),len(4),status(1)		|
+------------|-----------------------------------------------|
+block_header|block_id(4),ctime(4),mtime(4),len(4),char[MAX_SHM_BLOCK_LEN],status	|
+			|
+------------|
+
+shminfo: share memory to save the information of process.
+
+
+task category: 
+	1> task unit: config map;
+	2> command: 
+	3> server job:
+
+
+==> bin;
+	log;
+	conf;
+	src;
+	sos ==>
+			main
+				==>
+
+
