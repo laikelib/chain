@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<root>
+	<sos>
+		<so>
+			<tag name="index" value="0" desc="" />
+			<tag name="name" value="test" desc="name of so" />
+			<tag name="pcount" value="1" desc="the count of process instance" />
+			<tag name="tcount" value="1" desc="the count of thread instance" />
+			<tag name="path" value="lib/test.so" desc="" />
+		</so>
+		<so>
+			<tag name="index" value="1" desc="" />
+			<tag name="name" value="main" desc="name of so" />
+			<tag name="pcount" value="1" desc="the count of process instance" />
+			<tag name="tcount" value="1" desc="the count of thread instance" />
+			<tag name="path" value="lib/main.so" desc="" />
+		</so>
+	</sos>
+</root>
+

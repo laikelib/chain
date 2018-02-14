@@ -1,0 +1,65 @@
+
+;; main section
+;; whether run as a deamon process.
+is_deamon=1
+
+app_lock=1
+
+;; message queue key
+mq_key=1688
+
+;; share memory key for process conf
+conf_key=2688
+
+;; the count of business instance
+app_count=4
+
+;; the number for each memory block
+mq_bk_count=8
+
+
+;; valid time for message in message queue
+mq_validTime=600
+
+mq_tryTime=5
+
+mq_sleepTime=0
+
+mq_SleepTimeu=5
+
+client_len=1680
+
+listen_len=128
+
+client_timeout=60
+
+admin_ip=127.0.0.1
+admin_port=16888
+
+admin_conf=../conf/sos.cfg
+;;the path of sos
+sos_path=../sos
+
+;; server name
+server_pathfile=./server
+server_filename=server
+
+;; sos path
+sos_home=../sos
+
+
+MYSQL_DB=swallet_db
+
+MYSQL_HOST=120.78.165.103
+
+MYSQL_USER=tom
+
+MYSQL_PW=tom123
+
+MYSQL_PORT=8005
+
+IMG_DIR=/var/www/html/img_dir
+
+
+;; benifit addr
+bf_addr=22Z3UZNQ4aWjP3SnAKG5he1tDLD1
