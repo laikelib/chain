@@ -1,0 +1,12 @@
+
+;; whether is test net.
+net=1
+
+
+;;chain name
+app_name=main
+
+
+;; log name
+log_name=main_log
+
