@@ -28,7 +28,7 @@ HBOOL CAdminApp::Run () {
 
 			(void)m_server->ClientTimeOutCheck();
 
-			//(void)m_server->CheckShmControl();
+			(void)m_server->CheckShmControl();
 
 			(void)m_server->RunServer();
 
