@@ -59,7 +59,7 @@ HRET CMinerServer::RunServer() throw (HCException) {
 
     HNOTOK_RETURN(postWork());
 
-    sleep(2);
+    //sleep(2);
 
     HRETURN_OK;
 }
@@ -134,9 +134,9 @@ HRET CMinerServer::getBlockTemplate() throw (HCException) {
     bool bfailed = false;
     do {
 
-	LOG_NORMAL("send contro: {type:[%d], nid: [%d], bid: [%d], len: [%d], rtype: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen(), control.GetRType());
-	
 	HRET cb = m_pMq->Send(control, buf, 0);
+
+	LOG_NORMAL("send contro: {type:[%d], nid: [%d], bid: [%d], len: [%d], rtype: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen(), control.GetRType());
     
 	HIF_NOTOK(cb) {
 	    LOG_ES("send message queue failed");
@@ -264,6 +264,8 @@ HRET CMinerServer::postWork() throw (HCException) {
     do {
 
 	HRET cb = m_pMq->Send(control, buf, 0);
+
+	LOG_NORMAL("send contro: {type:[%d], nid: [%d], bid: [%d], len: [%d], rtype: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen(), control.GetRType());
 
 	HIF_NOTOK(cb) {
 
