@@ -27,16 +27,22 @@ HBOOL CMinerApp::Run() {
 
     while (HIS_TRUE(IsRunning())) {
 
-	try {
+    	try {
 
-	    m_pServer->RunServer ();
+	        m_pServer->RunServer ();
 
-	} catch(HCException& ex) {
+            sleep(2);
 
+        } catch(HCException& ex) {
 
-	}
+            LOG_ERROR("CMinerApp run get an exception. [%s]", ex.what());
+            // throw a exception;
+
+	    }
 
     }
+
+    // cancel son threads;
 
     LOG_WS("MinerApp is over");
 
@@ -56,5 +62,5 @@ void CMinerApp::init() {
     middle_config->ShowSoConfig();
 
     HFAILED_THROW(m_pServer->Init());
-    
+
 }

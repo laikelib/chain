@@ -6,7 +6,10 @@
 #include "minerapp.h"
 #include "block.h"
 
+#include <hmutex.h>
 #include <hmq.h>
+
+#include <hthread.h>
 
 using namespace HUIBASE;
 
@@ -23,8 +26,10 @@ public:
 
 private:
     HRET setupParam ();
-    
+
     HRET initMq () throw (HCException);
+
+    HRET initThreads () throw (HCException);
 
     HRET getBlockTemplate () throw (HCException);
 
@@ -33,6 +38,9 @@ private:
     HRET calBlock () throw (HCException);
 
     HRET postWork () throw (HCException);
+
+private:
+    static HRET sonMiner (CMinerServer* pserver);
 
 private:
     HSYS_T m_mq_key {0};
@@ -48,7 +56,7 @@ private:
     HINT m_sleep_time{0};
 
     HINT m_sleep_timeu{0};
-    
+
     HCMq * m_pMq = nullptr;
 
     HSTR m_strAddr;
@@ -56,6 +64,16 @@ private:
     HSTR m_strBlockTemp;
 
     CBlock m_block;
+
+    std::vector<HCThread> m_threads;
+
+    HINT m_nNewNonce = {0};
+    uint256 m_newHash = {0};
+
+    CConLock m_cl_task;
+    CConLock m_cl_result;
+
+
 };
 
 #endif //__MINERSERVER_H__
