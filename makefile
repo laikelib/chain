@@ -1,9 +1,9 @@
 
 
-DIRS = safeMiddle rpcServer core sos miner http
+DIRS = safeMiddle core sos miner http rpcServer
 
 all:
-	for dir in ${DIRS}; do make -C $$dir -j4; echo ; done;
+	for dir in ${DIRS}; do make -C $$dir -j8; echo ; done;
 
 
 rebuild:

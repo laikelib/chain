@@ -31,7 +31,7 @@ HBOOL CMinerApp::Run() {
 
 	        m_pServer->RunServer ();
 
-            sleep(2);
+            sleep(1);
 
         } catch(HCException& ex) {
 

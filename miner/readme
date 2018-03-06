@@ -1,8 +1,11 @@
 Update to multi thread miner; 201802181959 TomHui
 
-main thread get the block template from message queue; signal the son threads;
-and wait for son thread fixing the block;
+main thread get the block template from message queue;
+signal the son threads; set need = true;
+and wait for son thread fixing the block; 
 
 
-son thread wait for getting the newest block template; and calcute the best
-nonce; and then signal the main thread;
+son thread wait 'need is true';
+and calcute the best nonce;
+and then signal the main thread; set need = false;
+

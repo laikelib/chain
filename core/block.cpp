@@ -409,6 +409,7 @@ string CBlock::GetBlockJson () const {
 
 bool CBlock::FromJson(const string &strJson) {
 
+
     Json::Reader reader;
     Json::Value root;
 
@@ -418,12 +419,12 @@ bool CBlock::FromJson(const string &strJson) {
 	return false;
 
     }
-    
+
     SetVersion(root["version"].asInt());
     LOG(INFO) << "version: " << root["version"].asInt();
     SetType(root["type"].asInt());
     LOG(INFO) << "type: " << root["type"].asInt();
-    
+
     uint256 temp;
     temp.SetHex(root["hashPrevBlock"].asString());
     LOG(INFO) << "hash prev block: [" << temp.ToString() << "]";
@@ -438,8 +439,8 @@ bool CBlock::FromJson(const string &strJson) {
     LOG(INFO) << "time: " << root["time"].asInt();
     SetBits(root["bits"].asInt());
     LOG(INFO) << "bits: " << root["bits"].asInt();
-    SetNonce(root["nonce"].asInt());
-    LOG(INFO) << "nonce: " <<  root["nonce"].asInt();
+    SetNonce(root["nonce"].asUInt());
+    LOG(INFO) << "nonce: " <<  root["nonce"].asUInt();
     SetCount(root["count"].asInt());
     LOG(INFO) << "count: " << root["count"].asInt();
 

@@ -43,7 +43,7 @@ int CPostWorkService::PackReturn(SCM_DATA* res) throw (HCException){
     if (m_str.empty()) {
 
 	LOG(INFO) << "return null, set to 'error'";
-	m_str = "error";
+	m_str = "\"error\"";
 	
     }
 

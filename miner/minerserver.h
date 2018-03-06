@@ -6,14 +6,21 @@
 #include "minerapp.h"
 #include "block.h"
 
-#include <hmutex.h>
-#include <hmq.h>
 
-#include <hthread.h>
+#include <hmutex.h>
+
+#include <hmutex.h>
+#include <thread.h>
+#include <hconlock.h>
 
 using namespace HUIBASE;
 
 class CMinerServer {
+public:
+    typedef struct {
+        CMinerServer* p;
+        HUINT tar;
+    } SArg;
 public:
     CMinerServer ();
 
@@ -24,10 +31,14 @@ public:
 
     HRET RunServer () throw (HCException);
 
+    HRET SonMiner (HUINT tar);
+
+    CBlock GetBlock ();
+
+    void SetNewstNonce (HUINT nNonce);
+
 private:
     HRET setupParam ();
-
-    HRET initMq () throw (HCException);
 
     HRET initThreads () throw (HCException);
 
@@ -40,24 +51,36 @@ private:
     HRET postWork () throw (HCException);
 
 private:
-    static HRET sonMiner (CMinerServer* pserver);
+    static void* threadMiner (void* arg);
+
+    static HINT siSonRun;
+
+    static HINT siNeedCal;
+
+    void waitChildRun ();
+
+    void childRun ();
+
+    void waitForNeed ();
+
+    void finishedNeed ();
+
+    void waitForFinished ();
+
+    void needCal ();
 
 private:
-    HSYS_T m_mq_key {0};
+    volatile bool m_bStop = false;
 
-    HUINT m_app_count{0};
+    HSTR m_strRpcIp;
 
-    HUINT m_mq_bk_count{0};
+    HINT m_iRpcPort{0};
 
-    HINT m_mq_valid_time{0};
+    HINT m_nNewNonce = {0};
 
-    HINT m_mq_try_time{0};
+    uint256 m_newHash = {0};
 
-    HINT m_sleep_time{0};
-
-    HINT m_sleep_timeu{0};
-
-    HCMq * m_pMq = nullptr;
+    HINT m_nPorc = {1};
 
     HSTR m_strAddr;
 
@@ -65,10 +88,11 @@ private:
 
     CBlock m_block;
 
-    std::vector<HCThread> m_threads;
+    HUINT m_nNonce;
 
-    HINT m_nNewNonce = {0};
-    uint256 m_newHash = {0};
+    std::vector<CThread> m_threads;
+
+    CRwlock m_lock;
 
     CConLock m_cl_task;
     CConLock m_cl_result;

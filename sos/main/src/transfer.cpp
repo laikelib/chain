@@ -59,8 +59,8 @@ int CTransfer::PackReturn(SCM_DATA* data) throw (HCException) {
 
     if (m_result.empty()) {
 
-	LOG(INFO) << "return null, set to '{\"errno\":505, \"errmsg\":\"unknown exception\", result: \"error\"}'";
-	m_result = "{\"errno\":505, \"errmsg\":\"unknown exception\", result: \"error\"}";
+	LOG(INFO) << "return null, set to '{\"errno\":505, \"errmsg\":\"unknown exception\", \"result\": \"error\"}'";
+	m_result = "{\"errno\":505, \"errmsg\":\"unknown exception\", \"result\": \"error\"}";
 	
     }
 

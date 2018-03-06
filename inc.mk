@@ -40,13 +40,13 @@ OS_NAME = $(shell uname)
 
 
 CXX_INCLUDE += -I/data/laikelib/chain/deps/include \
-	-I/data/laikelib/chain/deps/glog/src \
+	-I/data/laikelib/chain/deps/glog/build \
 	-I/data/laikelib/chain/deps/openssl/include \
 	-I/data/laikelib/chain/deps/libconfig/lib \
 	-I/data/laikelib/chain/deps/cgicc
 
 LINK_CXX_LIBS += /data/laikelib/chain/deps/libconfig/lib/.libs/libconfig++.a \
-	/data/laikelib/chain/deps/glog/.libs/libglog.a 
+	/data/laikelib/chain/deps/glog/build/libglog.a
 
 
 TTYPE = AFILE

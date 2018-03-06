@@ -62,4 +62,10 @@ IMG_DIR=/var/www/html/img_dir
 
 
 ;; benifit addr
-bf_addr=22Z3UZNQ4aWjP3SnAKG5he1tDLD1
+bf_addr=2JJRSQAJ6cFswiEwirYYYTKfZ4oY
+
+;; rpc ip
+rpc_ip=127.0.0.1
+
+;; rpc port
+rpc_port=10088
