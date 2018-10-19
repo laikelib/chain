@@ -1,12 +1,17 @@
 
 #include <hstr.h>
 #include <hlog.h>
+#include <hmq.h>
+#include <hmutex.h>
 #include "command.h"
 
 #include <hipcdata.h>
 
+#include "rpcapp.h"
+
+using namespace HUIBASE;
+
 HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
-    HFUN_BEGIN;
 
     static constexpr HINT CLEN = 102400;
     static char rbuf[CLEN] = {0};
@@ -23,7 +28,7 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
         HRETURN(ILL_PT);
     }
 
-    LOG_NORMAL("buf length: [%d]", len);
+    //LOG_NORMAL("call mq buf length: [%d]", len);
 
     HCMq::CMsgControl control(1, 0, len, time(nullptr));
     control.SetType (1);
@@ -32,9 +37,11 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
     bool bfailed = false;
     do {
 
-        LOG_NORMAL("send contro: {type:[%d], nid: [%d], bid: [%d], len: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen());
+        //LOG_NORMAL("send contro: {type:[%d], nid: [%d], bid: [%d], len: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen());
 
-        HRET cb = m_pmq->Send(control, buf, 0);
+        MUTEXHOLDER holder(m_pmq->mutex);
+
+        HRET cb = m_pmq->mq.Send(control, buf, 0);
 
         HIF_NOTOK(cb) {
             LOG_ES("send message queue failed");
@@ -46,9 +53,9 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
         control.SetNid(1);
         control.SetLen(CLEN);
         control.SetCTime(time(nullptr));
-        cb = m_pmq->Recv(control, rbuf, 15, 0);
+        cb = m_pmq->mq.Recv(control, rbuf, 15, 0);
 
-        LOG_NORMAL("return control: {type: [%d], nid: [%d], bid: [%d], len: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen());
+        //LOG_NORMAL("return control: {type: [%d], nid: [%d], bid: [%d], len: [%d]}", control.GetType(), control.GetNid(), control.GetBid(), control.GetLen());
 
         HIF_NOTOK(cb) {
 
@@ -61,7 +68,7 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
 
         std::vector<HCIpcData> req_datas;
         HCIpcData::ParseDatas(rbuf, control.GetLen(), req_datas);
-        LOG_NORMAL("req_datas size: [%d]", req_datas.size());
+        //LOG_NORMAL("req_datas size: [%d]", req_datas.size());
 
         const HCIpcData& res = req_datas[0];
 
@@ -70,7 +77,7 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
 
         str = res.GetString();
 
-        LOG_NORMAL("mq return: [%s]", str.c_str());
+        //LOG_NORMAL("mq return: [%s]", str.c_str());
 
     } while (0);
 
@@ -82,7 +89,7 @@ HRET CCommand::sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException) {
 
     }
 
-    HFUN_END;
+    //HFUN_END;
     HRETURN_OK;
 
 }

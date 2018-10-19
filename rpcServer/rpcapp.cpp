@@ -1,7 +1,7 @@
 
 
 #include <hlog.h>
-#include "rpcapp.h"
+
 #include "../safeMiddle/common/middleConfig.h"
 
 #include <arpa/inet.h>
@@ -10,8 +10,13 @@
 
 #include "command.h"
 
-CRpcApp::CRpcApp (HINT argc, HCHAR* argv[])
-    : HCHapp(argc, argv){
+#include "syncmng.h"
+#include "rpcapp.h"
+
+struct event_base* g_base = nullptr;
+
+CRpcApp::CRpcApp (HINT argc, const HCHAR* argv[])
+    : HCApp(argc, argv){
 
 
 }
@@ -21,9 +26,15 @@ CRpcApp::~CRpcApp () {
 
     if (m_pmq != nullptr) {
 
-        m_pmq->Close();
+        m_pmq->mq.Close();
 
-        delete m_pmq;
+        HDELP(m_pmq);
+
+    }
+
+    if (nullptr != m_pSync) {
+
+        HDELP(m_pSync);
 
     }
 
@@ -34,7 +45,11 @@ HBOOL CRpcApp::Run() {
 
     HFUN_BEGIN;
 
+    g_base = m_base;
+
     event_base_dispatch(m_base);
+
+    uninit();
 
     HFUN_END;
 
@@ -42,6 +57,73 @@ HBOOL CRpcApp::Run() {
 
 }
 
+
+void CRpcApp::newEn(const CEntry &en) {
+
+    m_pSync->NewEn(en);
+
+}
+
+
+void CRpcApp::NewBl(const CBlock& bl) {
+
+    m_pSync->NewBl(bl);
+
+}
+
+
+void CRpcApp::RunMngUpdate() {
+    HFUN_BEGIN;
+
+    while (HIS_TRUE(IsRunning())) {
+
+        m_pSync->UpdateInfo();
+
+        sleep(15);
+    }
+
+    HFUN_END;
+}
+
+
+void CRpcApp::RunMngNet() {
+    HFUN_BEGIN;
+
+    while (HIS_TRUE(IsRunning())) {
+
+        m_pSync->HandleNet();
+
+    }
+
+    HFUN_END;
+}
+
+
+void CRpcApp::RunMngWork() {
+    HFUN_BEGIN;
+
+    while (HIS_TRUE(IsRunning())) {
+
+        m_pSync->HandleWork();
+
+    }
+
+    HFUN_END;
+}
+
+
+void CRpcApp::RunMngReConnect() {
+    HFUN_BEGIN;
+
+    while (HIS_TRUE(IsRunning())) {
+
+        m_pSync->ReConnect();
+
+        sleep(60);
+    }
+
+    HFUN_END;
+}
 
 
 void CRpcApp::init() {
@@ -58,7 +140,21 @@ void CRpcApp::init() {
     // http server
     initServer();
 
+    initSync();
+
 }
+
+
+void CRpcApp::uninit() {
+
+    Stop();
+
+    m_threadInfo.Join(nullptr);
+    m_threadNet.Join(nullptr);
+    m_threadWork.Join(nullptr);
+    m_threadRec.Join(nullptr);
+}
+
 
 void signal_handler(int sig) {
 
@@ -69,12 +165,14 @@ void signal_handler(int sig) {
     case SIGINT:
         LOG_NS("signal break...");
         //releaseLock ();
-        event_loopbreak ();
+        //event_loopbreak ();
+        event_base_loopbreak(g_base);
 
         break;
     }
 
 }
+
 
 HRET CRpcApp::setupSignal() {
 
@@ -107,9 +205,21 @@ HRET CRpcApp::setupParam() {
 
     m_rpc_ip = m_conf.GetValue ("rpc_ip", "127.0.0.1");
 
+    m_lk_ip = m_conf.GetValue ("lk_ip");
+
+    m_main_ip = m_conf.GetValue("main_ip", "");
+
+    m_main_port = m_conf.GetIntValue ("main_port", 11099);
+
+    m_lk_port = m_conf.GetIntValue("lk_port", 11099);
+
     LOG_NORMAL("mq_key: [%d], app_count: [%d], mq_bk_count: [%d], mq_valid_time: [%d], mq_try_time: [%d], sleep_time: [%d], sleep_timeu: [%d]", m_mq_key, m_app_count, m_mq_bk_count, m_mq_valid_time, m_mq_try_time, m_sleep_time, m_sleep_timeu);
 
     LOG_NORMAL("rpc port: [%d]", m_rpc_port);
+
+    LOG_NORMAL("laikelib ip[%s] port[%d]", m_lk_ip.c_str(), m_lk_port);
+
+    LOG_NORMAL("laikelib mainip[%s] mainport[%d]", m_main_ip.c_str(), m_main_port);
 
     HRETURN_OK;
 
@@ -120,11 +230,11 @@ HRET CRpcApp::initMq() throw (HCException){
 
     HFUN_BEGIN;
 
-    m_pmq = new HCMq (m_mq_key, m_app_count, m_mq_bk_count, HCMq::SShmControl(m_mq_valid_time, m_mq_try_time, m_sleep_time, m_sleep_timeu));
+    m_pmq = new RpcMq (m_mq_key, m_app_count, m_mq_bk_count, HCMq::SShmControl(m_mq_valid_time, m_mq_try_time, m_sleep_time, m_sleep_timeu));
 
     assert(m_pmq);
 
-    HNOTOK_RETURN(m_pmq->Open());
+    HNOTOK_RETURN(m_pmq->mq.Open());
 
     HFUN_END;
     HRETURN_OK;
@@ -154,34 +264,42 @@ HRET CRpcApp::initServer() throw (HCException){
     HRETURN_OK;
 }
 
-/*
-int CRpcApp::httpserver_bindocket(HINT port) {
 
-    m_fd = socket(AF_INET, SOCK_STREAM, 0);
-    HASSERT_THROW_MSG(m_fd > 0, "httpserver_bindsocket socket failed", SYS_FAILED);
+HRET CRpcApp::initSync() throw (HCException) {
+    HFUN_BEGIN;
 
+    m_pSync = new CSyncMng(m_lk_ip, m_lk_port);
+    CHECK_NEWPOINT(m_pSync);
 
-    int opt = 1;
-    int ret = setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(int));
+    m_pSync->SetMq(GetMq());
+    m_pSync->SetApp(this);
+    m_pSync->SetMainIp(m_main_ip);
+    m_pSync->SetMainPort(m_main_port);
 
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(m_rpc_ip.c_str());
-    addr.sin_port = htons(port);
+    HFAILED_MSG(m_pSync->Init(), "init sync manger failed");
 
-    ret = bind(m_fd, (struct sockaddr*)&addr, sizeof(addr));
-    HASSERT_THROW_MSG(ret == 0, "httpserver_bindocket bind failed", SYS_FAILED);
+    m_arg.pApp = this;
 
-    ret = listen(m_fd, 32);
-    HASSERT_THROW_MSG(ret == 0, "httpserver_bindocket listen failed", SYS_FAILED);
+    m_arg.op = 1; // update info;
+    HFAILED_MSG(m_threadInfo.Create(run_sync, &m_arg), "create sync info thread failed");
+    sleep(1);
 
-    //int flags = fcntl(m_fd, F_GETFL, 0);
-    //fcntl(m_fd, F_SETFL, flags | O_NONBLOCK);
+    m_arg.op = 2;
+    HFAILED_MSG(m_threadNet.Create(run_sync, &m_arg), "create sync net thread failed");
+    sleep(1);
 
-    return m_fd;
+    m_arg.op = 3;
+    HFAILED_MSG(m_threadWork.Create(run_sync, &m_arg), "create sync work thread failed");
+    sleep(1);
 
+    m_arg.op = 4;
+    HFAILED_MSG(m_threadRec.Create(run_sync, &m_arg), "create sync reconnect thread failed");
+    sleep(1);
+
+    HFUN_END;
+    HRETURN_OK;
 }
-*/
+
 
 void CRpcApp::httpserver_handler(struct evhttp_request *req, void * arg) {
 
@@ -232,6 +350,7 @@ void CRpcApp::httpserver_handler(struct evhttp_request *req, void * arg) {
 
         CRpcApp* app = (CRpcApp*)arg;
         pcgi->SetMq(app->GetMq());
+        pcgi->SetApp(app);
 
         try {
 
@@ -261,4 +380,31 @@ void CRpcApp::httpserver_handler(struct evhttp_request *req, void * arg) {
     evhttp_send_reply(req, 200, "OK", buf);
 
     HFUN_END;
+}
+
+
+void* CRpcApp::run_sync(void *arg) {
+
+    ThreadArg* pArg = (ThreadArg*) arg;
+
+    switch(pArg->op) {
+    case 1:
+        pArg->pApp->RunMngUpdate();
+        break;
+
+    case 2:
+        pArg->pApp->RunMngNet();
+        break;
+
+    case 3:
+        pArg->pApp->RunMngWork();
+        break;
+
+    case 4:
+        pArg->pApp->RunMngReConnect();
+        break;
+    }
+
+    return nullptr;
+
 }

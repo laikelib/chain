@@ -32,13 +32,14 @@ CXX_INCLUDE += -I../core
 CXX_INCLUDE += -I../deps/jsoncpp/include
 CXX_INCLUDE += -I../deps/libevent/include
 CXX_INCLUDE += -I../deps/jsoncpp/include
+CXX_INCLUDE += -I../deps/openssl/include
 LINK_CXX_LIBS += -L../../huibase/lib
 LINK_CXX_LIBS += -lhuibase -lcore -lhuicrypto
 LINK_CXX_LIBS += ../deps/jsoncpp/build/src/lib_json/libjsoncpp.a
 LINK_CXX_LIBS += -L../deps/glog/.libs/ -lglog -lpthread
-LINK_CXX_LIBS += -L../deps/db48/build_unix -ldb_cxx -lpthread
+LINK_CXX_LIBS += -L../deps/db48/build_unix -lpthread
 LINK_CXX_LIBS += ../deps/leveldb/libleveldb.a -lpthread
-LINK_CXX_LIBS += -L../deps/openssl -lssl -lcrypto -lpthread
+LINK_CXX_LIBS += ../deps/openssl/libssl.a ../deps/openssl/libcrypto.a -lpthread
 LINK_CXX_LIBS += ../deps/libevent/.libs/libevent.a
 LINK_CXX_LIBS += ../deps/jsoncpp/build/src/lib_json/libjsoncpp.a
 

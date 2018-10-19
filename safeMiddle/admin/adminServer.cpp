@@ -190,7 +190,7 @@ HRET CAdminServer::ClientTimeOutCheck () throw (HCException){
 
 HRET CAdminServer::CheckShmControl () throw (HCException) {
 
-	static constexpr HUINT sTimeOut = 120;
+	static constexpr HUINT sTimeOut = 600;
 	HTIME nowtt = time(nullptr);
 
 	for (HUINT i = 0; i < m_pShmInfo->GetCount(); ++i) {

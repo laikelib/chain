@@ -91,7 +91,7 @@ bool CBlock::WriteToDisk(unsigned int &nFileRet, unsigned int &nBlockPosRet) {
 
     // Flush stdio buffers and commit to disk before returning
     fflush(fileout);
-    
+
     fsync(fileno(fileout));
 
     return true;
@@ -227,47 +227,52 @@ bool CBlock::HasBaseEntry() const{
 
 
 bool CBlock::CheckBlock() const {
-    LOG(INFO) << "CBlock::CheckBlock...";
+
+    if (m_nCount != m_entrys.size()) {
+
+        LOG(ERROR) << "check block failed, count is not match the entry size";
+
+        return false;
+
+    }
 
     if (GetEntrysSize() < 1) {
 
-	LOG(ERROR) << "check block failed, entry size: " << GetEntrysSize();
+        LOG(ERROR) << "check block failed, entry size: " << GetEntrysSize();
 
-	return false;
-	
+        return false;
+
     }
 
-    
     if (not CheckPow()) {
 
-	LOG(ERROR) << "check pow failed.";
+        LOG(ERROR) << "check pow failed.";
 
-	return false;
+        return false;
 
     }
-
 
     if (not CheckCoinBase()) {
 
-	LOG(ERROR) << "check coinbase failed...";
-	return false;
+        LOG(ERROR) << "check coinbase failed...";
+        return false;
 
     }
 
     if (not CheckEntrys()) {
 
-	LOG(ERROR) << "check entrys failed ...";
-	return false;
+        LOG(ERROR) << "check entrys failed ...";
+        return false;
 
     }
 
     if (not CheckMerkleRoot()) {
 
-	LOG(ERROR) << "check merkle root failed ...";
-	return false;
-	
-    }    
-        
+        LOG(ERROR) << "check merkle root failed ...";
+        return false;
+
+    }
+
     return true;
 }
 

@@ -16,20 +16,10 @@ public:
 
     HRET Work () throw (HCException);
 
-    virtual HSTR GetRes () const throw (HCException) override;
-
  private:
-    HSTR m_strTo;
-    HSTR m_strFo;
-
-    HDOUBLE m_dVal;
-    HDOUBLE m_dFee;
-
-    HSTR m_strPri;
-    HSTR m_strPub;
-
     HSTR m_str;
 
+    HSTR m_src;
 };
 
 

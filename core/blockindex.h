@@ -47,6 +47,14 @@ public:
     HUINT GetHeight () const { return m_nHeight; }
     HLLINT GetMoneySupply () const { return m_nMoneySupply; }
 
+    const uint256& GetRoot () const { return m_hashRoot; }
+    HUINT GetRootHeight () const { return m_nRootHeight; }
+    bool IsMain () const { return m_nIsMain != 0;  }
+
+    void SetRoot (const uint256& hashRoot ) { m_hashRoot = hashRoot; }
+    void SetRootHeight (HUINT nRootHeight) { m_nRootHeight = nRootHeight; }
+    void SetMain (bool bMain = true) { m_nIsMain = bMain ? 1 : 0; }
+
     void SetBlockHash (const uint256* pHash) { m_pHashBlock = pHash; }
     void SetPrevIndex (CBlockIndex* prev) { m_pPrev = prev; }
     void SetNextIndex (CBlockIndex* next) { m_pNext = next; }
@@ -65,6 +73,10 @@ protected:
     HUINT m_nHeight {0};
 
     HLLINT m_nMoneySupply {0};
+
+    uint256 m_hashRoot {0};
+    HUINT m_nRootHeight {0};
+    HINT m_nIsMain{0};
 };
 
 
@@ -100,7 +112,7 @@ public:
 			READWRITE(m_nBits);
 			READWRITE(m_nNonce);
 			READWRITE(m_nCount);
-			
+
 			READWRITE(hashBlock);
 			READWRITE(hashPrev);
 			READWRITE(hashNext);			
@@ -108,10 +120,13 @@ public:
 			READWRITE(m_nBlockPos);
 			READWRITE(m_nHeight);
 			READWRITE(m_nMoneySupply);
-)
-	
-    
-    
+
+            READWRITE(m_hashRoot);
+            READWRITE(m_nRootHeight);
+            READWRITE(m_nIsMain);
+                        )
+
+
 };
 
 

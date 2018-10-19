@@ -12,7 +12,7 @@
 using namespace HUIBASE;
 
 
-class CServerApp : public HCHapp {
+class CServerApp : public HCApp {
 public:
 	CServerApp ();
 

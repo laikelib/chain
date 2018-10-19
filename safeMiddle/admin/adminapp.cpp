@@ -6,8 +6,8 @@
 
 #include "../common/middleConfig.h"
 
-CAdminApp::CAdminApp(HINT argc, HCHAR* argv[])
-	: HCHapp(argc, argv){
+CAdminApp::CAdminApp(HINT argc, const HCHAR* argv[])
+	: HCApp(argc, argv){
 
 
 }

@@ -33,6 +33,8 @@ class CEntry {
 public:
     CEntry ();
 
+    CEntry(const CEntry& entry);
+
     CEntry (HN64 nValue, HN64 nFee, const CLKAddress& addrSender, const CLKAddress& addrReceiver);
 
 public:

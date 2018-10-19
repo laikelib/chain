@@ -5,29 +5,68 @@
 
 #include <huibase.h>
 #include <happ.h>
-
+#include <hmutex.h>
 #include <hmq.h>
-
 #include <sys/socket.h>
 
 #include <netinet/in.h>
 #include <event.h>
 #include <evhttp.h>
 
+#include <entry.h>
+#include <block.h>
+
+#include <thread.h>
+
 using namespace HUIBASE;
 
-class CRpcApp : public HCHapp {
+class CSyncMng;
+
+struct RpcMq {
+    RpcMq (HSYS_T ipckey, HUINT uMaxNodeNum, HUINT uMaxBlockNum,
+           const HCMq::SShmControl& control)
+    : mq (ipckey, uMaxNodeNum, uMaxBlockNum, control) { }
+
+    HCMq mq;
+    HCMutex mutex;
+};
+
+class CRpcApp : public HCApp {
  public:
-    CRpcApp(HINT argc, HCHAR* argv[]);
+    typedef struct {
+        class CRpcApp* pApp;
+        //class CSyncMng* pMng;
+        int op;
+    } ThreadArg;
+ public:
+    CRpcApp(HINT argc, const HCHAR* argv[]);
 
     ~ CRpcApp ();
 
     HBOOL Run ();
 
-    HCMq* GetMq () { return m_pmq; }
+    RpcMq* GetMq () { return m_pmq; }
+
+    CSyncMng* GetSyncMng() { return m_pSync; }
+
+    void newEn (const CEntry& en);
+
+    void NewBl (const CBlock& block);
+
+ public:
+    void RunMngUpdate();
+
+    void RunMngNet();
+
+    void RunMngWork ();
+
+    void RunMngReConnect();
+
 
  private:
     virtual void init();
+
+    void uninit();
 
     HRET setupSignal ();
 
@@ -37,10 +76,13 @@ class CRpcApp : public HCHapp {
 
     HRET initServer () throw (HCException);
 
-    //int httpserver_bindocket (HINT port);
+    HRET initSync () throw (HCException);
+
 
  private:
     static void httpserver_handler(struct evhttp_request* req, void* arg);
+
+    static void* run_sync (void* arg);
 
  private:
     HSYS_T m_mq_key {0};
@@ -61,11 +103,30 @@ class CRpcApp : public HCHapp {
 
     HUINT m_rpc_port {0};
 
-    HCMq* m_pmq = nullptr;
+    RpcMq* m_pmq = nullptr;
 
     //HFD_T m_fd {0};
 
+    HSTR m_lk_ip;
+    HUINT m_lk_port{0};
+
     struct event_base* m_base = nullptr;
+
+    class CSyncMng* m_pSync = nullptr;
+
+    CThread m_threadInfo;
+
+    CThread m_threadNet;
+
+    CThread m_threadWork;
+
+    CThread m_threadRec;
+
+    ThreadArg m_arg;
+
+    HSTR m_main_ip;
+
+    HUINT m_main_port;
 
 };
 

@@ -24,7 +24,7 @@ inline void RESET_ODATA(SCM_DATA& data) {
 
 inline void RESET_ODATAP(SCM_DATA* p) {
     if (p != nullptr && p->odata != nullptr) {
-	memset(p->odata, 0, SCM_MAX_LEN);
+        memset(p->odata, 0, SCM_MAX_LEN);
     }
 }
 

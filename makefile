@@ -1,6 +1,6 @@
 
 
-DIRS = safeMiddle core sos miner http rpcServer
+DIRS = safeMiddle core sos miner rpcServer wallet
 
 all:
 	for dir in ${DIRS}; do make -C $$dir -j8; echo ; done;

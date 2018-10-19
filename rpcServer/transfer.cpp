@@ -4,33 +4,24 @@
 #include "transfer.h"
 #include <hlog.h>
 
+#include <hadaptation.h>
+#include <hcrypto.h>
+#include <entry.h>
+
+#include <serialize.h>
+
+#include "rpcapp.h"
+#include "syncmng.h"
 
 HRET CTransferCgi::Init(HCSTRR str) throw (HCException) {
 
     HPS ps = parseInput(str);
 
-    HSTR str2;
+    HASSERT_RETURN(ps.count("entry"), INVL_PARA);
+    m_str = ps["entry"];
+    LOG_NORMAL("entry: [%s]", m_str.c_str());
 
-    HASSERT_RETURN(ps.count("value"), INVL_PARA);
-    str2 = ps["value"];
-    m_dVal = HCStr::stod(str2);
-
-    HASSERT_RETURN(ps.count("fee"), INVL_PARA);
-    str2 = ps["fee"];
-    m_dFee = HCStr::stod(str2);
-
-    HASSERT_RETURN(ps.count("tos"), INVL_PARA);
-    m_strTo = ps["tos"];
-
-    HASSERT_RETURN(ps.count("fos"), INVL_PARA);
-    m_strFo = ps["fos"];
-
-    HASSERT_RETURN(ps.count("pub"), INVL_PARA);
-    m_strPub = ps["pub"];
-
-    HASSERT_RETURN(ps.count("pri"), INVL_PARA);
-    m_strPri = ps["pri"];
-
+    m_src = m_str;
 
     HRETURN_OK;
 }
@@ -41,27 +32,36 @@ HRET CTransferCgi::Work() throw (HCException) {
 
     HFUN_BEGIN;
 
+    using namespace HUIBASE::CRYPTO;
+
     HASSERT_THROW_MSG(m_pmq != nullptr, "message qeueu is not initialize", ILL_PT);
 
-    stringstream ss;
-    ss << "{\"value\":" << m_dVal << ", \"fee\":" << m_dFee << ", \"sender\": \"" << m_strFo <<  "\",\"receiver\":\"" << m_strTo << "\", \"public\":\""<< m_strPub <<"\", \"private\":\"" << m_strPri << "\"}";
+    HFAILED_THROW(sendAndRecv("new_tx", m_str));
 
-    HSTR str = ss.str();
-    LOG_NORMAL("sent mq: [%s]", str.c_str());
+    LOG_NORMAL("laikelib new_tx return [%s]", m_str.c_str());
 
-    HFAILED_THROW(sendAndRecv("transfer", str));
+    if (m_str != "DROP") {
 
-    m_res = str;
+        HSTR dst;
+        HFAILED_MSG(HDecode(m_src, dst), "decode src failed");
+
+        HBUF hbuf;
+        hstr_vs(dst, hbuf);
+        CDataStream ds(hbuf.begin(), hbuf.end(), SER_NETWORK, NODE_VERSION);
+
+        CEntry new_en;
+        ds >> new_en;
+
+        LOG_NORMAL("need to broadcast new tx [%s]", new_en.ToJsonString().c_str());
+
+        m_pApp->GetSyncMng()->NewEn (new_en);
+
+    }
+
+    m_res = m_str;
 
     HFUN_END;
     HRETURN_OK;
-
-}
-
-
-HSTR CTransferCgi::GetRes () const throw (HCException) {
-
-    return m_res;
 
 }
 

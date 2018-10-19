@@ -39,3 +39,29 @@ uint256 CMainParams::GetGenesisBlockHash() const {
 }
 
 
+
+HN64 CMainParams::CoinBasePay(HUINT nHeight) const{
+
+    HN64 res = 0;
+
+    if (nHeight <= FirstHalfPoint() ) {
+
+        res = FirstPay();
+
+    } else if (nHeight > FirstHalfPoint() && nHeight <= SecondHalfPoint()) {
+
+        res = SecondPay();
+
+    } else if (nHeight > SecondHalfPoint() && nHeight <= LastPoint()) {
+
+        res = LastPay();
+
+    } else if (nHeight > LastPoint()) {
+
+        res = 0;
+
+    }
+
+    return res;
+
+}

@@ -13,15 +13,10 @@ CCoinTxdb::CCoinTxdb(const char* pszmode)
 
 bool CCoinTxdb::LoadBlockIndex() {
 
-    //LOG(INFO) << "load block index";
-
-    if (so_config->GetBlockIndexMap().size() > 0) {
-
-	LOG(INFO) << "block index map is empty...";
-	// Already loaded in this session. It can happen during
-	// migration from BDB.
-	return true;
-
+    IF_FALSE(so_config->IsBlockIndexEmpty()) {
+        LOG(INFO) << "block index map is empty...";
+        // Already loaded in this session.
+        return true;
     }
 
     // Read block index from leveldb that on the disk to memory.
@@ -31,95 +26,105 @@ bool CCoinTxdb::LoadBlockIndex() {
     dsStartKey << make_pair(string("blockindex"), uint256(0));
     iterator->Seek(dsStartKey.str());
 
-
     while (iterator->Valid()) {
 
-	CDataStream dsKey (SER_DISK, NODE_VERSION);
-	dsKey.write(iterator->key().data(), iterator->key().size());
+        CDataStream dsKey (SER_DISK, NODE_VERSION);
+        dsKey.write(iterator->key().data(), iterator->key().size());
 
-	CDataStream dsValue(SER_DISK, NODE_VERSION);
-	dsValue.write(iterator->value().data(), iterator->value().size());
+        CDataStream dsValue(SER_DISK, NODE_VERSION);
+        dsValue.write(iterator->value().data(), iterator->value().size());
 
-	string strType;
-	dsKey >> strType;
+        string strType;
+        dsKey >> strType;
 
-	//LOG(INFO) << "type: " << strType;
+        if (strType != "blockindex") {
 
-	// if strType is not "blockindex", that means we meet the
-	// end of the data.
-	if (strType != "blockindex") {
+            LOG(INFO) << "no blockindex found..., break";
+            break;
 
-	    LOG(INFO) << "no blockindex found..., break";
-	    break;
-	    
-	}
+        }
 
-	CDiskBlockIndex diskindex;
-	dsValue >> diskindex;
+        CDiskBlockIndex diskindex;
+        dsValue >> diskindex;
 
-	uint256 blockHash = diskindex.GetHash ();
+        uint256 blockHash = diskindex.GetHash ();
 
-	CBlockIndex* pIndexNew = so_config->InsertBlockIndex(blockHash);
-	pIndexNew->SetPrevIndex (so_config->InsertBlockIndex(diskindex.hashPrev));
-	pIndexNew->SetNextIndex (so_config->InsertBlockIndex(diskindex.hashNext));
-	pIndexNew->SetFileIn (diskindex.GetFileIn());
-	pIndexNew->SetBlockPos (diskindex.GetBlockPos ());
-	pIndexNew->SetHeight (diskindex.GetHeight());
-	pIndexNew->SetMoneySupply(diskindex.GetMoneySupply());
+        CBlockIndex* pIndexNew = so_config->InsertBlockIndex(blockHash);
+        pIndexNew->SetPrevIndex (so_config->InsertBlockIndex(diskindex.hashPrev));
+        pIndexNew->SetNextIndex (so_config->InsertBlockIndex(diskindex.hashNext));
+        pIndexNew->SetFileIn (diskindex.GetFileIn());
+        pIndexNew->SetBlockPos (diskindex.GetBlockPos ());
+        pIndexNew->SetHeight (diskindex.GetHeight());
+        pIndexNew->SetMoneySupply(diskindex.GetMoneySupply());
 
-	pIndexNew->SetVersion (diskindex.GetVersion());
-	pIndexNew->SetType (diskindex.GetType());
-	pIndexNew->SetHashPrevBlock(diskindex.GetHashPrevBlock());
-	pIndexNew->SetHashMerkleRoot (diskindex.GetMerkleRoot());
-	pIndexNew->SetTime (diskindex.GetTime());
-	pIndexNew->SetBits (diskindex.GetBits ());
-	pIndexNew->SetNonce (diskindex.GetNonce ());
-	pIndexNew->SetCount (diskindex.GetCount());
+        pIndexNew->SetVersion (diskindex.GetVersion());
+        pIndexNew->SetType (diskindex.GetType());
+        pIndexNew->SetHashPrevBlock(diskindex.GetHashPrevBlock());
+        pIndexNew->SetHashMerkleRoot (diskindex.GetMerkleRoot());
+        pIndexNew->SetTime (diskindex.GetTime());
+        pIndexNew->SetBits (diskindex.GetBits ());
+        pIndexNew->SetNonce (diskindex.GetNonce ());
+        pIndexNew->SetCount (diskindex.GetCount());
 
-	//LOG(INFO) << "found a blockindex: [" << pIndexNew->ToString() << "]";
-	//LOG(INFO) << "found a blockindex: [" << pIndexNew->GetHash().ToString() << "]";
+        pIndexNew->SetRoot (diskindex.GetRoot());
+        pIndexNew->SetRootHeight (diskindex.GetRootHeight());
+        pIndexNew->SetMain (diskindex.IsMain());
 
-	if (so_config->GetGenesisIndex() == nullptr && blockHash ==
-	    so_config->GetGenesisBlockHash()) {
+        so_config->SetIndexHeight(blockHash, pIndexNew->GetHeight());
 
-	    LOG(INFO) << "found the genesis block index: " << pIndexNew->GetHash().ToString();
-	    so_config->SetGenesisIndex (pIndexNew);
+        if (so_config->GetGenesisIndex() == nullptr && blockHash ==
+            so_config->GetGenesisBlockHash()) {
 
-	    LOG(INFO) << "genesis index: " << so_config->GetGenesisIndex();
-	}
+            LOG(INFO) << "found the genesis block index: " << pIndexNew->GetHash().ToString();
+            so_config->SetGenesisIndex (pIndexNew);
 
-	iterator->Next ();
-		
+        }
+
+        iterator->Next ();
+
     }
 
     delete iterator;
 
-    uint256 hashBestChain;
+    uint256 hashBestChain, hashBestRoot;
 
     if (not ReadHashBestChain(hashBestChain)) {
 
-	if (so_config->GetGenesisIndex() == nullptr) {
-	    LOG(INFO) << "need init block chain...";
-	    return true;
-	}
-	LOG(ERROR) << "read hash best chain failed";
-	return false;
-	
+        if (so_config->GetGenesisIndex() == nullptr) {
+            LOG(INFO) << "need init block chain...";
+            return true;
+        }
+
+        LOG(ERROR) << "read hash best chain failed";
+        return false;
+
     }
 
     LOG(INFO) << "best hash: " << hashBestChain.ToString();
 
-    if (not so_config->GetBlockIndexMap ().count(hashBestChain)) {
-	LOG(ERROR) << "best hash not loaded";
-	return false;
+    IF_FALSE(so_config->HasBlock(hashBestChain)) {
+
+        LOG(ERROR) << "best hash not loaded";
+        return false;
+
     }
-    
+
+    if (not ReadHashBestRoot(hashBestRoot)) {
+
+        LOG(ERROR) << "read hash best root failed";
+        return false;
+
+    }
+
+    LOG(INFO) << "best root: " << hashBestRoot.ToString();
+
+    so_config->SetHashBestRoot(hashBestRoot);
+
     so_config->SetHashBest(hashBestChain);
 
     // bestindex, bestheight
-    
-    so_config->initBestIndexAndHeight ();
-    
+    so_config->initBestIndex ();
+
     LOG(INFO) << "CCoinTxdb LoadBlockIndex Success";
     return true;
 }

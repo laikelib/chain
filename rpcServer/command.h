@@ -5,9 +5,11 @@
 
 #include <huibase.h>
 #include <hsingleton.hpp>
-#include <hmq.h>
 
 using namespace HUIBASE;
+
+struct RpcMq;
+class CRpcApp;
 
 class CCommand {
  public:
@@ -17,7 +19,9 @@ class CCommand {
 
     HCSTRR GetName () const { return m_strName; }
 
-    void SetMq (HCMq* pmq) { m_pmq = pmq; }
+    void SetMq (RpcMq* pmq) { m_pmq = pmq; }
+
+    void SetApp (CRpcApp* pApp) { m_pApp = pApp; }
 
     virtual HRET Init (HCSTRR) throw (HCException) { HRETURN_OK; }
 
@@ -25,7 +29,6 @@ class CCommand {
 
     virtual HSTR GetRes () const throw (HCException);
 
- protected:
     HRET sendAndRecv(HCSTRR strCmd, HSTRR str) throw (HCException);
 
     HPS parseInput (HCSTRR str) const;
@@ -35,7 +38,8 @@ class CCommand {
     HSTR m_strName;
     HSTR m_res;
 
-    HCMq* m_pmq = nullptr;
+    RpcMq* m_pmq = nullptr;
+    CRpcApp* m_pApp = nullptr;
 };
 
 class CCommandFactory {

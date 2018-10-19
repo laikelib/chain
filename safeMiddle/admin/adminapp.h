@@ -12,9 +12,9 @@
 
 using namespace HUIBASE;
 
-class CAdminApp : public HCHapp {
+class CAdminApp : public HCApp {
 public:
-	CAdminApp (HINT argc, HCHAR* argv[]);
+	CAdminApp (HINT argc, const HCHAR* argv[]);
 
 	~ CAdminApp();
 

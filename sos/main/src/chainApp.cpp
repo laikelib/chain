@@ -1,14 +1,18 @@
 
 
 #include <huibase.h>
+#include <hadaptation.h>
 #include <hfname.h>
 #include <chainApp.h>
 #include <glog/logging.h>
-#include <wallet.h>
 #include <txdb-leveldb.h>
 #include <base58.h>
 #include <util.h>
 #include <hash.h>
+#include <serialize.h>
+
+#include <hcrypto.h>
+
 
 using namespace HUIBASE;
 
@@ -28,7 +32,6 @@ CMainChain::CMainChain ()
 
 CMainChain::~CMainChain () {
 
-    HDELP(m_pWallet);
 
 }
 
@@ -45,24 +48,48 @@ HSTR CMainChain::GetBlockTemplate (HCSTRR strAddr) {
 
      */
 
+    using namespace HUIBASE::CRYPTO;
+
     LOG(INFO) << "CMainChain::GetBlockTemplate() Begin... with [" << strAddr << "]";
+
+    // makesure it will not product repeat entry.
+    sleep(1);
 
     shared_ptr<CBlock> pbt (GetNewBlock(strAddr));
 
     LOG(INFO) << "block template hash: [" << pbt->GetHash().ToString() << "]";
-        
-    HSTR str = pbt->ToJsonString();
+
+    LOG(INFO) << "BLOCK: " << pbt->GetBlockJson();
+
+    CDataStream ds(SER_NETWORK, NODE_VERSION);
+    ds << (*pbt);
+
+    HSTR res;
+    HEncode(ds.str(), res);
 
     LOG(INFO) << "CMainChain::GetBlockTemplate() End...";
 
-    return str;
-    
+    return res;
+
 }
 
 
 HSTR CMainChain::PostWork(HCSTRR str) {
-
     LOG(INFO) << "CMainChain::PostWork() Begin...";
+
+    using namespace HUIBASE::CRYPTO;
+
+    HSTR strIn;
+    HIF_NOTOK(HDecode(str, strIn)) {
+
+        LOG(ERROR) << "decode input string failed";
+        return "";
+
+    }
+
+    HBUF hbuf;
+    hstr_vs(strIn, hbuf);
+    CDataStream ds(hbuf.begin(), hbuf.end(), SER_NETWORK, NODE_VERSION);
 
     HSTR res;
 
@@ -70,12 +97,7 @@ HSTR CMainChain::PostWork(HCSTRR str) {
     CHECK_NEWPOINT(pbk);
     shared_ptr<CBlock> sharedptr(pbk);
 
-    if (not pbk->FromJson(str)) {
-	
-	LOG(ERROR) << "block import failed ...";
-	return res;
-	
-    }
+    ds >> (*pbk);
 
     LOG(INFO) << "block information: " << pbk->ToJsonString();
 
@@ -84,15 +106,15 @@ HSTR CMainChain::PostWork(HCSTRR str) {
 
     if (not chainCheckBlock(pbk) ) {
 
-	LOG(ERROR) << "chainCheckBlock failed....";
-	return "";
-	
+        LOG(ERROR) << "chainCheckBlock failed....";
+        return "";
+
     }
 
     if (not pbk->CheckBlock ()) {
 
-	LOG(ERROR) << "check block failed...";
-	return "";
+        LOG(ERROR) << "check block failed...";
+        return "";
 
     }
 
@@ -100,61 +122,23 @@ HSTR CMainChain::PostWork(HCSTRR str) {
     // save block to file
     if (not AcceptBlock (pbk)) {
 
-	LOG(ERROR) << "save block to file failed...";
-	return "";
+        LOG(ERROR) << "save block to file failed...";
+        return "";
 
     }
-    
+
     if (not ProcessBlock(pbk)) {
 
-	LOG(ERROR) << "process block failed";
-	return "";
+        LOG(ERROR) << "process block failed";
+        return "";
 
     }
-
-    m_pWallet->InitAccountBalance();
-    m_pWallet->SetAccountsBalance();
 
     LOG(INFO) << "CMainChain::PostWork() End...";
 
     res = HCStr::Format("{\"height\":%d}", GetBestHeight());
     return res;
 
-}
-
-
-HSTR CMainChain::NewAccount() {
-
-    CPubKey pubkey = m_pWallet->GenerateNewKey();
-
-    CPrivKey prikey = m_pWallet->GetPrivate(pubkey);
-
-    // addr|private hash|private
-    CLKAddress addr;
-    addr.Set(pubkey.GetID());
-    HSTR strAddr = addr.ToString();
-
-    HSTR strPub = EncodeBase64(&pubkey[0], pubkey.size());
-
-    HSTR strPri = EncodeBase64(&prikey[0], prikey.size());
-
-    return strAddr + "|" + strPub + "|" + strPri;
-
-}
-
-
-HSTR CMainChain::AccountInfo (HCSTRR str) {
-
-    CKey key = m_pWallet->GetKey (CLKAddress(str));
-
-    CPubKey pubkey = key.GetPubKey();
-    CPrivKey prikey = key.GetPrivKey();
-    
-    HSTR strPub = EncodeBase64(&pubkey[0], pubkey.size());
-
-    HSTR strPri = EncodeBase64(&prikey[0], prikey.size());
-
-    return str + "|" + strPub + "|" + strPri;
 }
 
 
@@ -171,20 +155,22 @@ HSTR CMainChain::GetHeight() {
 
 HSTR CMainChain::HeightBlock (HCSTRR str) {
 
+    using namespace HUIBASE::CRYPTO;
+
     HINT nHeight = HCStr::stoi(str);
-    
+
     if (nHeight > GetBestHeight()) {
 
-	LOG(ERROR) << "invalid param. Height: " << nHeight << ", best height: " << GetBestHeight();
+        LOG(ERROR) << "invalid param. Height: " << nHeight << ", best height: " << GetBestHeight();
 
-	return "";
-	
+        return "";
+
     }
 
     CBlockIndex* pindex = GetBlockIndex(nHeight);
     if (pindex == nullptr) {
-	LOG(ERROR) << "cann't find the block index";
-	return "";
+        LOG(ERROR) << "cann't find the block index";
+        return "";
     }
 
     CBlock* pbk = new CBlock();
@@ -194,209 +180,130 @@ HSTR CMainChain::HeightBlock (HCSTRR str) {
 
     pbk->ReadFromDisk (pindex);
 
-    return sp->GetBlockJson();
-    
-}
+    LOG(INFO) << "BLOCK: " << pbk->GetBlockJson();
 
+    CDataStream ds(SER_NETWORK, NODE_VERSION);
+    ds << (*pbk);
 
-HSTR CMainChain::QueryAccount(HCSTRR str) {
-
-    CLKAddress addr(str);
-
-    if (not addr.IsValid()) {
-	return "";
-    }
-
-    HN64 ret = m_pWallet->GetAccountBal(addr);
-
-    double dd = (double) ret / LKT_COIN;
-
-    HSTR res = HCStr::Format("%0.8f", dd);
+    HSTR res;
+    HEncode(ds.str(), res);
 
     return res;
+
 }
 
 
-HSTR CMainChain::GetTxs(HCSTRR str) {
+HSTR CMainChain::GetBal(HCSTRR strAddr) {
 
-    CLKAddress addr(str);
+    CLKAddress addr(strAddr);
+    HN64 nBal = m_mngBal.GetBal(addr);
+
+    LOG(INFO) << strAddr << ": " << nBal;
+
+    return HCStr::lltos(nBal);
+
+}
 
 
-    if (not addr.IsValid()) {
+HSTR CMainChain::HashTx(HCSTRR strHash) {
 
-	return "";
+    uint256 hash;
+    hash.SetHex(strHash);
+    LOG(INFO) << "input hash: " << hash.ToString();
+
+    const CEntryIndex* cei = m_history.GetEntryIndex(hash);
+    LOG(ERROR) << strHash << " can't matched any block index";
+
+    if (cei) {
+        return cei->ToString();
+    }
+
+    return "\"DROP\"";
+
+}
+
+
+HSTR CMainChain::LkInfo() {
+
+    HSTR res = m_info.GetNodeInfo ();
+
+    return res;
+
+}
+
+
+HSTR CMainChain::newTx(HCSTRR str) {
+
+    using namespace HUIBASE::CRYPTO;
+    HSTR strIn;
+
+    HIF_NOTOK(HDecode(str, strIn)){
+        LOG(ERROR) << "decode input string failed";
+        return "";
+    }
+
+    HBUF hbuf;
+    hstr_vs(strIn, hbuf);
+    CDataStream ds(hbuf.begin(), hbuf.end(), SER_NETWORK, NODE_VERSION);
+
+    CEntry new_en;
+    ds >> new_en;
+
+    LOG(INFO) << "new entry: " << new_en.ToJsonString();
+
+    if (not checkNewEntry(new_en)) {
+
+        LOG(ERROR) << "check new entry balance";
+        return "";
 
     }
 
-    std::vector<CEntry> ens;
+    if (not new_en.Check()) {
 
-    m_pWallet->GetTxs(addr, ens);
+        LOG(ERROR) << "check new entry failed";
+        return "";
 
-    std::stringstream ss;
-
-    ss << "{ txs: " << CEntry::GetJsonFromEntrys(ens) << "}";
-
-    return ss.str();
-}
-
-
-HSTR CMainChain::Transfer(HDOUBLE dValue, HDOUBLE dFee, HCSTRR strSender,
-			  HCSTRR strReceiver, HCSTRR strPublic,  HCSTRR strPrivate) {
-
-    HN64 nValue = dValue * LKT_COIN;
-    HN64 nFee = dFee * LKT_COIN;
-
-    LOG(INFO) << "CMainChain::Transfer (value: " << nValue << ", fee: "
-	      << nFee << ", sender: " << strSender << ", receiver: "
-	      << strReceiver << ", private: " << strPrivate;
-
-
-    HASSERT_THROW_MSG(nValue < MAX_TRAN_LKT, "too more transfer value", INVL_PARA);
-    
-    HASSERT_THROW_MSG(nFee < MAX_LKC_FEE, "too more transfer fee", INVL_PARA);
-
-    HASSERT_THROW_MSG(nFee > MIN_LKC_FEE, "too less transfer fee", INVL_PARA);
-
-    CLKAddress addrSender(strSender);
-
-    CLKAddress addrReceiver(strReceiver);
-
-    LOG(INFO) << "sender address: " << addrSender.ToString();
-
-    LOG(INFO) << "receiver address: " << addrReceiver.ToString();
-
-    HASSERT_THROW_MSG(addrSender.IsValid(), "sender address is invalid", INVL_PARA);
-
-    HASSERT_THROW_MSG(addrReceiver.IsValid(), "receiver address is invalid", INVL_PARA);
-
-    // make a entry
-    CEntry newtx(nValue, nFee, addrSender, addrReceiver);
-    if (not m_pWallet->Transfer(newtx, strPublic, strPrivate)) {
-
-	LOG(ERROR) << "wallet transfer transaction {" << newtx.ToJsonString() << "}, hash: [" << newtx.GetEntryHash().ToString() << "], failed";
-	return "";
-	
     }
 
-    // add to unblocked list;
-    m_listUnentry.push_back(newtx);
+    if (not new_en.VerifySign()) {
 
-    return MakeJsonReturn(newtx.GetEntryHash().ToString());
+        LOG(ERROR) << "new entry check signature failed";
+        return "";
 
-}
-
-
-HSTR CMainChain::InnerTransfer(HDOUBLE dValue, HDOUBLE dFee, HCSTRR strSender, HCSTRR strReceiver) {
-    
-    HN64 nValue = dValue * LKT_COIN;
-    HN64 nFee = dFee * LKT_COIN;
-
-    LOG(INFO) << "CMainChain::InnerTransfer (value: " << nValue << ", fee: "
-	      << nFee << ", sender: " << strSender  <<  ", receiver: "
-	      << strReceiver;
-
-    HASSERT_THROW_MSG(nValue < MAX_TRAN_LKT, "too more transfer value", INVL_PARA);
-    
-    HASSERT_THROW_MSG(nFee < MAX_LKC_FEE, "too more transfer fee", INVL_PARA);
-
-    HASSERT_THROW_MSG(nFee > MIN_LKC_FEE, "too less transfer fee", INVL_PARA);
-
-    CLKAddress addrSender(strSender);
-
-    LOG(INFO) << "sender address: " << addrSender.ToString();
-
-    HASSERT_THROW_MSG(addrSender.IsValid(), "sender address is invalid", INVL_PARA);
-
-    CLKAddress addrReceiver(strReceiver);
-
-    LOG(INFO) << "receiver address: " << addrReceiver.ToString();
-
-    HASSERT_THROW_MSG(addrReceiver.IsValid(), "receiver address is invalid", INVL_PARA);
-
-    // make a entry
-    CEntry newtx;
-    newtx.SetType(1);
-    newtx.SetCreateTime(time(nullptr));
-    newtx.SetSenderAddr(addrSender);
-    newtx.SetReceiver(addrReceiver);
-    newtx.SetValue(nValue);
-    newtx.SetFee(nFee);
-
-    if (not m_pWallet->InnerTransfer(newtx)) {
-
-	LOG(ERROR) << "wallet transfer transaction {" << newtx.ToJsonString() << "}, hash: [" << newtx.GetEntryHash().ToString() << "], failed";
-	return "";
-	
     }
 
-    // add to unblocked list;
-    m_listUnentry.push_back(newtx);
+    m_mngEntrys.AddNewEntry(new_en);
 
-    return MakeJsonReturn(newtx.GetEntryHash().ToString());
+    LOG(INFO) << "new entry: " << new_en.GetEntryHash().ToString();
+
+    return new_en.GetEntryHash().ToString();
 
 }
+
+
 
 
 HRET CMainChain::initLast() {
 
-    try {
-
-	(void) verifyDatabase();
-
 	(void) loadBlockChain();
 
-	(void) loadWallet();
+    (void) checkBlockChain();
 
-	displayBlockChain();
-    
-    } catch (...) {
+    (void) initHistory();
 
-    }
+    (void) initBalance();
+
+    (void) checkBalance();
+
+    m_mngBal.Display();
+
+    displayBlockChain();
 
     m_isInited = HTRUE;
 
     HRETURN_OK;
-    
-}
-
-HRET CMainChain::verifyDatabase() {
-
-    LOG(INFO) << "Verifying database integrity...";
-
-    m_strWalletDicFileName = GetValue(SO_DATA_DIR) + "/wallet.dat";
-
-    if (not bitdb.Open (GetValue (SO_DATA_DIR))) {
-
-	LOG(ERROR) << "Initializing wallet database environment failed";
-
-	HRETURN(ERR_STATUS);
-
-    }
-
-    LOG(INFO) << "wallet file name: " << m_strWalletDicFileName;
-    
-    IF_TRUE(HCFileName::IsExists(m_strWalletDicFileName)) {
-
-	LOG(INFO) << "wallet is exists, verify..";
-	CDBEnv::VerifyResult r = bitdb.Verify(m_strWalletDicFileName, CWalletDB::Recover);
-
-	if (r == CDBEnv::RECOVER_OK) {
-	    LOG(INFO) << "Recover wallet.dat Success";
-	}
-
-	if (r == CDBEnv::RECOVER_FAIL) {
-	    LOG(ERROR) <<"wallet.dat corrupt, salvage failed";
-	    HRETURN(MISS_FILE);
-	}
-
-    }
-
-    LOG(INFO) << "verifyDatabase end...";
-
-    HRETURN_OK;
 
 }
-
 
 HRET CMainChain::loadBlockChain() {
 
@@ -406,78 +313,157 @@ HRET CMainChain::loadBlockChain() {
 
     if (not ctxdb.LoadBlockIndex()) {
 
-	LOG(ERROR) << "ctxdb.LoadBlockIndex() failed";
+        LOG(ERROR) << "ctxdb.LoadBlockIndex() failed";
 
-	HRETURN(SRC_FAIL);
-	
-    }
-
-    if (GetBlockIndexMap().empty()) {
-
-	LOG(INFO) << "Initialize genesis block";
-
-	CBlock block = GenesisBlock();
-	LOG(INFO) << "genesis block hash: [" << block.GetHash().ToString() << "]";
-	LOG(INFO) << "block: [" << block.ToJsonString() << "];";
-
-	unsigned int nFile = 0, nBlockPos = 0;
-
-	if (not block.WriteToDisk (nFile, nBlockPos)) {
-
-	    LOG(ERROR) << "block.Write disk failed";
-	    
-	    HRETURN(IO_ERR);
-	    
-	}
-
-	LOG(INFO) << "Write file: " << nFile << ", position: " << nBlockPos;
-
-	if (not AddToBlockIndex (block, nFile, nBlockPos) ){
-
-	    LOG(ERROR) << "block add to block index failed...";
-
-	    HRETURN(ILL_PT);
-
-	}
-
-	LOG(INFO) << "Init block chain success...";
+        HRETURN(SRC_FAIL);
 
     }
 
+    IF_TRUE(m_mapBlockIndex.IsEmpty()) {
+
+        LOG(INFO) << "Initialize genesis block";
+
+        CBlock block = GenesisBlock();
+
+        LOG(INFO) << "genesis block hash: [" << block.GetHash().ToString() << "]";
+        LOG(INFO) << "block: [" << block.ToJsonString() << "];";
+
+        unsigned int nFile = 0, nBlockPos = 0;
+
+        if (not block.WriteToDisk (nFile, nBlockPos)) {
+
+            LOG(ERROR) << "block.Write disk failed";
+
+            HRETURN(IO_ERR);
+
+        }
+
+        LOG(INFO) << "Write file: " << nFile << ", position: " << nBlockPos;
+
+        if (not AddToBlockIndex (block, nFile, nBlockPos) ){
+
+            LOG(ERROR) << "block add to block index failed...";
+
+            HRETURN(ILL_PT);
+
+        }
+
+        LOG(INFO) << "Init block chain success...";
+
+    }
 
     HRETURN_OK;
-    
+
 }
 
-HRET CMainChain::loadWallet () {
 
-    LOG(INFO) << "CMainChain::loadWallet";
+HRET CMainChain::checkBlockChain() {
+    LOG(INFO) << "checkBlockChain BEGIN ...";
 
-    m_pWallet = new CWallet(GetValue(SO_DATA_DIR) + "/wallet.dat");
-    CHECK_NEWPOINT(m_pWallet);
+    // check genesis info;
+    LOG(INFO) << "check genesis information...";
+    HIF_NOTOK(m_mapBlockIndex.CheckGenesisInfo (GetGenesisBlockHash())) {
 
-    bool bFirstLoad = false;
-    DBErrors cb = m_pWallet->LoadWallet(bFirstLoad);
+        LOG(INFO) << "genesis hash:" << GetGenesisBlockHash().ToString();
+        LOG(ERROR) << "check blockchain genesis information failed";
+        HRETURN(SRC_FAIL);
 
-    HASSERT_THROW (cb == DB_LOAD_OK, ERR_STATUS);
-
-    if (bFirstLoad) {
-	
-	LOG(INFO) << "First load...";
-
-	// make a new account
-	CPubKey pubKey = m_pWallet->GenerateNewKey();
-
-	CKeyID keyID = pubKey.GetID();
-
-	CLKAddress addr;
-	addr.Set(keyID);
-	LOG(INFO) << addr.ToString();
-	
     }
 
-    m_pWallet->InitAccountBalance();
-    m_pWallet->SetAccountsBalance();
+    // check blocks;
+    LOG(INFO) << "check block ...";
+    HIF_NOTOK(m_mapBlockIndex.CheckBlocks()) {
+
+        LOG(ERROR) << "check blocks failed";
+        HRETURN(ERR_STATUS);
+
+    }
+
+    // check root info;
+    LOG(INFO) << "check root, best hash, height information...";
+    HIF_NOTOK(m_mapBlockIndex.CheckRootBestHeight(GetHashBest(), GetHashBestRoot(), GetBestHeight())) {
+
+        LOG(ERROR) << "check root, hest hash, height information failed";
+        HRETURN(ERR_STATUS);
+
+    }
+
+    LOG(INFO) << "checkBlockChain END ...";
+    HRETURN_OK;
+}
+
+
+HRET CMainChain::initHistory() {
+    LOG(INFO) << __FUNCTION__ << " BEGIN...";
+
+    using HEIGHTINDEXMAP = CBlockIndexMap::BLOCKINDEXHEIGHTMAP;
+    using INDEXSET = CBlockIndexMap::INDEXSET;
+
+    const HEIGHTINDEXMAP& index_map = m_mapBlockIndex.GetHeightIndex();
+
+    for (HEIGHTINDEXMAP::const_iterator cit = index_map.cbegin(); cit != index_map.cend(); ++cit) {
+
+        const INDEXSET& cvs = cit->second;
+
+        for (INDEXSET::const_iterator citv = cvs.cbegin(); citv != cvs.cend(); ++citv) {
+
+            const CBlockIndex* pIndex = *citv;
+
+            m_history.OverIndex(const_cast<CBlockIndex*>(pIndex));
+
+        }
+
+    }
+
+
+    LOG(INFO) << __FUNCTION__ << " END...";
+    HRETURN_OK;
+}
+
+
+HRET CMainChain::initBalance() {
+    LOG(INFO) << __FUNCTION__ << " BEGIN...";
+    // init balmap;
+    m_mngBal.OverBlockChain(m_mapBlockIndex);
+
+    LOG(INFO) << __FUNCTION__ << " END...";
+
+    HRETURN_OK;
+
+}
+
+
+HRET CMainChain::checkBalance() const {
+
+    HUINT nHeight = GetBestHeight();
+    HN64 sum = 0;
+
+    if (nHeight <= m_params.FirstHalfPoint() ) {
+
+        sum = nHeight * m_params.FirstPay();
+
+    } else if (nHeight > m_params.FirstHalfPoint() && nHeight <= m_params.SecondHalfPoint()) {
+
+        sum = m_params.FirstHalfPoint() * m_params.FirstPay ();
+        sum += (nHeight - m_params.FirstHalfPoint()) * m_params.SecondPay();
+
+    } else if (nHeight > m_params.SecondHalfPoint() && nHeight <= m_params.LastPoint()) {
+
+        sum = m_params.FirstHalfPoint() * m_params.FirstPay ();
+        sum += (m_params.SecondHalfPoint() - m_params.FirstHalfPoint()) * m_params.SecondPay();
+        sum += (nHeight - m_params.LastPoint()) * m_params.LastPay();
+
+    } else if (nHeight > m_params.LastPoint()) {
+
+        sum += m_params.GetSupplySum ();
+
+    }
+
+    LOG(INFO) << "height: " << nHeight << ", height-sum: " << sum <<", now-sum: " << m_mngBal.GetBalSum ();
+
+    HASSERT_RETURN(sum == m_mngBal.GetBalSum(), ERR_STATUS);
+
+    HASSERT_RETURN(sum <= m_params.GetSupplySum(), ERR_STATUS);
 
     HRETURN_OK;
 
@@ -488,37 +474,22 @@ HRET CMainChain::Shutdown() {
 
     LOG(INFO) << "CMainChain shutdown...";
 
-    return CChainCore::Shutdown();
+    //return CChainCore::Shutdown();
+    HRETURN_OK;
 
 }
 
 
 CBlockIndex* CMainChain::InsertBlockIndex(const uint256 &hash) {
 
-    if (hash == 0) {
-	return nullptr;
-    }
+    return m_mapBlockIndex.newBlockIndex(hash);
 
-    // Return exists.
-    BLOCKINDEXMAP::iterator fit = m_mapBlockIndex.find(hash);
-    if (fit != m_mapBlockIndex.end()) {
-	//LOG(INFO) << "find the index, need not insert";
-	return fit->second;
-    }
-    
-    // create new blockindex, and return.
-    CBlockIndex* pIndexNew = new CBlockIndex();
-    CHECK_NEWPOINT(pIndexNew);
-
-    m_mapBlockIndex.insert(make_pair(hash, pIndexNew));
-
-    return pIndexNew;
-    
 }
 
 
-CBlock* CMainChain::GetNewBlock(HCSTRR strName) {
+CBlock* CMainChain::GetNewBlock(HCSTRR strAddr) {
 
+    // Create a new block without proof-of-work.
     LOG(INFO) << "CMainChain::GetNewBlock ...";
 
     CBlock* pret = new CBlock();
@@ -526,38 +497,31 @@ CBlock* CMainChain::GetNewBlock(HCSTRR strName) {
 
     pret->SetHashPrevBlock (GetHashBest());
 
-    CLKAddress addr;
-    m_pWallet->DefaultAddress (addr);
+    CLKAddress addr(strAddr);
     LOG(INFO) << "default benifit address: " << addr.ToString();
 
     pret->SetTime(time(nullptr));
 
     pret->SetNonce (0);
 
-
-    LOG(INFO) << "add entry to new block ...";
-
-    // add entry
+    // create coinbase entry
     // 1> add coinbase;
     // TODO: coinbase 10' lkt
-    CEntry baseEntry;
-    m_pWallet->MakeCoinBase(baseEntry, strName);
+    CEntry baseEntry = CreateCoinBase(addr);
 
-    LOG(INFO) << "Set Base Entry ...";
     pret->SetBaseEntry(baseEntry);
 
     // 2> add other txs;
     std::vector<CEntry> es;
-    GetWillBlockEntrys(es);
+    m_mngEntrys.GetUnBlockedEntrys(es);
 
     LOG(INFO) << "will block " << es.size() << "'s entry to new block...";
     pret->BlockEntrys (es);
-        
+
     // set bits
     LOG(INFO) << "set new block's bits...";
     pret->SetBits (GetTargetBits());
     LOG(INFO) << "bits: " << pret->GetBits();
-    
 
     // set merkleroot
     LOG(INFO) << "Build merkleroot...";
@@ -569,49 +533,25 @@ CBlock* CMainChain::GetNewBlock(HCSTRR strName) {
 }
 
 
-void CMainChain::GetWillBlockEntrys(std::vector<CEntry>& entrys) {
-    LOG(INFO) << __FUNCTION__ << " begin...";
-
-    int ncount = 0;
-
-    // TODO: entry list size
-    for (UNENTRYLIST::iterator it = m_listUnentry.begin();
-	 it != m_listUnentry.end() && ncount < 10; ++it) {
-
-	const CEntry& cr = *it;
-
-	entrys.push_back(cr);
-
-	++ ncount;
-
-    }
-
-
-}
-
-
 HINT CMainChain::GetTargetBits () {
-    
-    LOG(INFO) << "CMainChain::GetTargetBits begin...";
 
     CBigNum bnTargetLimit = m_params.GetPowLimit ();
     LOG(INFO) << "bnTargetLimit: " << bnTargetLimit.ToString();
 
     if (GetBestHeight() < 3) {
-	LOG(INFO) << "height: " << GetBestHeight() << ", set lessest bits";
 
-	return bnTargetLimit.GetCompact(); // genesis block
+        LOG(INFO) << "height: " << GetBestHeight() << ", set lessest bits";
+
+        return bnTargetLimit.GetCompact(); // genesis block
 
     }
 
     LOG(INFO) << "height: " << GetBestHeight() <<", will set new bits";
-    
+
     const CBlockIndex* pindexPrev = GetLastBlockIndex(GetBestIndex());
     if (pindexPrev->GetPrevIndex() == nullptr) {
-	//LOG(ERROR) << "CMainChain::SetTargetBits pindexPrev is nullptr";
-	//LOG(ERROR) << "pindexPrev: [" << pindexPrev->ToString() << "]";
-	// TODO: alawys here.
-	return bnTargetLimit.GetCompact();
+        // TODO: alawys here.
+        return bnTargetLimit.GetCompact();
     }
 
     LOG(INFO) << "pindexPrev height: " << pindexPrev->GetHeight();
@@ -619,8 +559,8 @@ HINT CMainChain::GetTargetBits () {
     const CBlockIndex* pindexPrevPrev = GetLastBlockIndex (pindexPrev->GetPrevIndex());
     if (pindexPrevPrev->GetPrevIndex() == nullptr) {
 
-	return bnTargetLimit.GetCompact();
-	
+        return bnTargetLimit.GetCompact();
+
     }
 
     LOG(INFO) << "pindexPrevPrev height: " << pindexPrevPrev->GetHeight();
@@ -658,39 +598,42 @@ bool CMainChain::chainCheckBlock(const CBlock* pbk) const {
     LOG(INFO) << "CMainChain::chainCheckBlock";
 
     uint256 block_hash = pbk->GetHash();
-    // not this hash
-    if (m_mapBlockIndex.count(block_hash)) {
 
-	LOG(ERROR) << "hash [" << block_hash.ToString() << "] is exists...";
-	return false;
-	
+    // not this hash
+    IF_TRUE(m_mapBlockIndex.HasBlock(block_hash)) {
+
+        LOG(ERROR) << "hash [" << block_hash.ToString() << "] is exists...";
+        return false;
+
     }
 
     // TODO: if the block is not match the prev hash, add it to a banch list.
+    // TODO: for now, we only accept the best chain. NOT BRANCH CHAIN.
     // check prev hash == besthash
     const uint256& prev_hash = pbk->GetHashPrevBlock();
     if (prev_hash != GetHashBest()) {
-	LOG(ERROR) << "error block to chain. best hash: [" <<
-	    GetHashBest().ToString() << "], prev hash: [" << prev_hash.ToString()
-		   << "]";
-	return false;
+
+        LOG(ERROR) << "error block to chain. best hash: [" <<
+	    GetHashBest().ToString() << "], prev hash: [" << prev_hash.ToString() << "]";
+        return false;
+
     }
 
     // block time check
     const CBlockIndex * bestIndex = GetBestIndex ();
     if (bestIndex == nullptr) {
 
-	LOG(ERROR) << "bestindex is null";
-	return false;
+        LOG(ERROR) << "bestindex is null";
+        return false;
 
     }
 
     HUINT best_time = bestIndex->GetTime ();
     if (best_time > pbk->GetTime()) {
 
-	LOG(ERROR) << "new block time is error";
-	return false;
-	
+        LOG(ERROR) << "new block time is error";
+        return false;
+
     }
 
     LOG(INFO) << "CMainChain::chainCheckBlock";
@@ -701,42 +644,44 @@ bool CMainChain::chainCheckBlock(const CBlock* pbk) const {
 bool CMainChain::AcceptBlock (CBlock* pbk) {
 
     LOG(INFO) << "accept block, hash: [" << pbk->GetHash().ToString() << "]";
-    LOG(INFO) << "block: " << pbk->ToJsonString();
 
     unsigned int nFile = 0, nBlockPos = 0;
 
     if ( not pbk->WriteToDisk(nFile, nBlockPos)) {
 
-	LOG(ERROR) << "block write disk failed";
-	return false;
+        LOG(ERROR) << "block write disk failed";
+        return false;
 
     }
-    
+
     LOG(INFO) << "write file: " << nFile << ", pos: " << nBlockPos;
 
     if (not AddToBlockIndex(*pbk, nFile, nBlockPos)) {
 
-	LOG(ERROR) << "block add to block index failed...";
-	return false;
+        LOG(ERROR) << "block add to block index failed...";
+        return false;
 
     }
 
     LOG(INFO) << "Write block chain success...";
-    
+
     return true;
-    
+
 }
 
 
 bool CMainChain::ProcessBlock(CBlock* pbk) {
 
     LOG(INFO) << "CMainChain::ProcessBlock begin...";
-    
-    // save txs;
-    m_pWallet->ProcessBlock(*pbk);
+
+    // add to history;
+    m_history.OverBlock(pbk, const_cast<CBlockIndex*>(GetBestIndex()));
 
     // remove txs;
-    removeBlockedEntrys(pbk->GetEntrys());
+    m_mngEntrys.AcceptBlock(*pbk);
+
+    // update balmng;
+    m_mngBal.OverNewBlock(*pbk);
 
     LOG(INFO) << "CMainChain::ProcessBlock end...";
 
@@ -744,12 +689,22 @@ bool CMainChain::ProcessBlock(CBlock* pbk) {
 }
 
 
+HRET CMainChain::SetIndexHeight (const uint256& hash, HUINT nHeight) {
+
+    return m_mapBlockIndex.SetIndexHeight(hash, nHeight);
+
+}
+
 
 bool CMainChain::AddToBlockIndex (CBlock& block, unsigned int nFile, unsigned int nBlockPos) {
-
     LOG(INFO) << "CMainChain::AddToBlockIndex...";
-        // Check for duplicate
+
+    // Check for duplicate
     uint256 hash = block.GetHash();
+    IF_TRUE(m_mapBlockIndex.HasBlock(hash)) {
+        LOG(ERROR) << "AddToBlockIndex(): " << hash.ToString() << " already exists";
+        return false;
+    }
 
     LOG(INFO) << "AddToBlockIndex, File: " << nFile << ", position: " << nBlockPos << ", hash: [" << hash.ToString() << "]";
 
@@ -758,38 +713,38 @@ bool CMainChain::AddToBlockIndex (CBlock& block, unsigned int nFile, unsigned in
     CHECK_NEWPOINT(pindexNew);
 
     LOG(INFO) << "AddToBlockIndex, index information: (" << pindexNew->ToString() << ")";
-    LOG(INFO) << "block index hash: " << pindexNew->GetHash().ToString();
-    
-    pindexNew->SetBlockHash (&hash);
 
-    const map<uint256, CBlockIndex*>::iterator fit = m_mapBlockIndex.find(block.GetHashPrevBlock());
+    CBlockIndex* pPrevIndex = m_mapBlockIndex.GetIndex(block.GetHashPrevBlock());
 
-    if (fit != m_mapBlockIndex.end())
-    {
-	LOG(INFO) << "Find out prev block, prev hash: " << fit->second->GetHash().ToString();
-	pindexNew->SetPrevIndex(fit->second);
-	pindexNew->SetHeight(pindexNew->GetPrevIndex()->GetHeight() + 1);
+    LOG(INFO) << "map size: " << m_mapBlockIndex.GetCount() << ", prev index: " << pPrevIndex;
+
+    IF_FALSE(m_mapBlockIndex.IsEmpty()) {
+        HASSERT_THROW_MSG(pPrevIndex != nullptr, "prev block is null", ERR_STATUS);
     }
 
-    LOG(INFO) << "AddToBlockIndex hash: [" << hash.ToString() << "], height: " << pindexNew->GetHeight(); 
+    pindexNew->SetMain(true);
+    pindexNew->SetPrevIndex(pPrevIndex);
+
+    pindexNew->SetHeight(pPrevIndex ? pindexNew->GetPrevIndex()->GetHeight() + 1 : 0);
+
+    pindexNew->SetMoneySupply(block.GetAmount());
+
+    LOG(INFO) << "AddToBlockIndex hash: [" << hash.ToString() << "], height: " << pindexNew->GetHeight();
 
     // Add to mapBlockIndex
-    map<uint256, CBlockIndex*>::iterator it =  m_mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
-
-    pindexNew->SetBlockHash(&((*it).first));
-
+    m_mapBlockIndex.InsertIndex(hash, pindexNew);
     LOG(INFO) << "pindexNew hash: [" << pindexNew->GetBlockHash ().ToString() << "]";
 
     // Write to disk block index
     CCoinTxdb txdb;
     if (not txdb.TxnBegin()) {
-	LOG(ERROR) << "txdb.TxnBegin failed";
+        LOG(ERROR) << "txdb.TxnBegin failed";
         return false;
     }
-    
+
     txdb.WriteBlockIndex(CDiskBlockIndex(pindexNew));
     if (not txdb.TxnCommit()) {
-	LOG(ERROR) << "txdb.TxnCommit failed";
+        LOG(ERROR) << "txdb.TxnCommit failed";
         return false;
     }
 
@@ -800,21 +755,16 @@ bool CMainChain::AddToBlockIndex (CBlock& block, unsigned int nFile, unsigned in
 
 bool CMainChain::SetBestChain(CCoinTxdb& txdb, CBlock& block, CBlockIndex *pindexNew) {
 
-    LOG(INFO) << "SetBestChain, height: " << pindexNew->GetHeight();
+    //  TODO: for now, the root index must be genesis index;
 
     uint256 hash = block.GetHash();
 
     LOG(INFO) << "laikelib will set new best block, hash: [" << hash.ToString() << "]";
 
     if (not txdb.TxnBegin()) {
-	LOG(ERROR) << "CMainChain::SetBestChain txdb.TxnBegin() failed";
-	return false;
+        LOG(ERROR) << "CMainChain::SetBestChain txdb.TxnBegin() failed";
+        return false;
     }
-
-    const CBlock& const_gb = GenesisBlock();
-    LOG(INFO) << "const block: [" << const_gb.ToJsonString()<< "]";
-    LOG(INFO) << "genesis block hash: " << const_gb.GetHash().ToString();
-    LOG(INFO) << "hash: " << hash.ToString() << ", genesis hash: " << GenesisBlock().GetHash().ToString();
 
     txdb.WriteHashBestChain(hash);
 
@@ -822,29 +772,44 @@ bool CMainChain::SetBestChain(CCoinTxdb& txdb, CBlock& block, CBlockIndex *pinde
 
 	    LOG(ERROR) << "SetBestChain() : TxnCommit failed";
 	    return false;
-	    
+
     }
-    
+
     if (GetGenesisIndex() == nullptr && hash == GenesisBlock().GetHash()) {
 
-	// make this as gensis block index.
-	SetGenesisIndex(pindexNew);
+        if (not txdb.TxnBegin()) {
+            LOG(ERROR) << "CMainChain::SetBestChain txdb.TxnBegin() Set Root failed";
+            return false;
+        }
 
-	LOG(INFO) << "Set genesis block, hash: " << hash.ToString() <<", height: " << pindexNew->GetHeight ();
-	
-    } else if (pindexNew->GetHashPrevBlock() == m_hashBest) {
-	// set new best, add the new block to the end of the chain.
+        txdb.WriteHashBestRoot(hash);
 
-	pindexNew->SetPrevNext();
+        if (not txdb.TxnCommit()) {
 
-	LOG(INFO) << "new block index information: " << pindexNew->ToString();
-	
+            LOG(ERROR) << "SetBestChain() : TxnCommit Set Root failed";
+            return false;
+
+        }
+
+        SetHashBestRoot(hash);
+
+        // make this as gensis block index.
+        SetGenesisIndex(pindexNew);
+
+        LOG(INFO) << "Set genesis block, hash: " << hash.ToString() <<", height: " << pindexNew->GetHeight ();
+
+    } else if (pindexNew->GetHashPrevBlock() == GetHashBest()) {
+        // set new best, add the new block to the end of the chain.
+
+        pindexNew->SetPrevNext();
+
+        LOG(INFO) << "new block index information: " << pindexNew->ToString();
+
     }
 
     // new best block
-    m_hashBest = hash;
-    m_pBestIndex = pindexNew;
-    m_nBestHeight = pindexNew->GetHeight();
+    m_info.SetBestHash(hash);
+    m_info.SetBestIndex(pindexNew);
 
     LOG(INFO) << "NOW hashBest: " << hash.ToString() << ", bestIndex: " << pindexNew << ", bestheight: " << pindexNew->GetHeight();
 
@@ -857,85 +822,118 @@ void CMainChain::displayBlockChain() {
 
     LOG(INFO) << __FUNCTION__;
 
-    LOG(INFO) << "wallet direction file name: [" << m_strWalletDicFileName << "]";
+    LOG(INFO) << "genesis index pointer: " << m_info.GetGenesisIndex() << ", genesis hash: [" << m_info.GetGenesisIndex()->GetHash().ToString() << "]";
 
-    LOG(INFO) << "genesis index pointer: " << m_pGenesisIndex << ", genesis hash: [" << m_pGenesisIndex->GetHash().ToString() << "]";
+    LOG(INFO) << "genesis index string: [" << m_info.GetGenesisIndex()->ToString() << "]";
 
-    LOG(INFO) << "genesis index string: [" << m_pGenesisIndex->ToString() << "]";
-    
-    LOG(INFO) << "best hash: [" << m_hashBest.ToString() << "]";
+    LOG(INFO) << "best hash: [" << GetHashBest().ToString() << "]";
 
-    LOG(INFO) << "best block index: " << m_pBestIndex << ", best block hash: [" << m_pBestIndex->GetHash().ToString() << "]";
+    LOG(INFO) << "best block index: " << m_info.GetBestIndex() << ", best block hash: [" << m_info.GetBestIndex()->GetHash().ToString() << "]";
 
-    LOG(INFO) << "best height: [" << m_nBestHeight << "]";
+    LOG(INFO) << "best height: [" << m_info.GetCurrentHeight() << "]";
 
-    LOG(INFO) << "mapblockindex size: " << m_mapBlockIndex.size();
+    LOG(INFO) << "mapblockindex size: " << m_mapBlockIndex.GetCount();
 
-#if 0
-    for (BLOCKINDEXMAP::const_iterator cfit = m_mapBlockIndex.begin(); cfit != m_mapBlockIndex.end(); ++cfit) {
-
-	const uint256& hash = cfit->first;
-
-	const CBlockIndex* p = cfit->second;
-
-	LOG(INFO) << "height: [" << p->GetHeight() << "], block hash: [" << hash.ToString() << "]";
-
-    }
-#endif     
-
-    //m_pWallet->displayWallet();
-    
-}
-
-
-void CMainChain::removeBlockedEntrys (const std::vector<CEntry>& entrys) {
-
-    LOG(INFO) << "CMainChain::removeBlockedEntrys begin entrys size: [" << m_listUnentry.size() << "]";
-    for(size_t i = 0; i < entrys.size(); ++i) {
-
-	const CEntry & cen = entrys[i];
-
-	m_listUnentry.remove(cen);
-
-    }
-
-    LOG(INFO) << "CMainChain::removeBlockedEntrys end entrys size: [" << m_listUnentry.size() << "]";
+    LOG(INFO) << "all entry size: " << m_history.GetEntrySum();
 
 }
 
 
-void CMainChain::initBestIndexAndHeight () {
+void CMainChain::initBestIndex () {
 
-    CBlockIndex* pbi = m_mapBlockIndex[m_hashBest];
+    CBlockIndex* pbi = m_mapBlockIndex.GetIndex(GetHashBest());
+
     if (pbi == nullptr) {
 
-	LOG(ERROR) << "best blockindex is nullptr";
-	return ;
-	
+        LOG(ERROR) << "best blockindex is nullptr";
+        return ;
+
     }
 
-    m_nBestHeight = pbi->GetHeight ();
-
-    m_pBestIndex = pbi;
+    m_info.SetBestIndex(pbi);
 
 }
 
 
 CBlockIndex* CMainChain::GetBlockIndex(HUINT nHeight) {
 
-    for(BLOCKINDEXMAP::iterator it = m_mapBlockIndex.begin();
-	it != m_mapBlockIndex.end(); ++it) {
+    return m_mapBlockIndex.GetIndex(nHeight);
 
-	CBlockIndex* pos = it->second;
+}
 
-	if (pos->GetHeight() == nHeight) {
 
-	    return pos;
+CEntry CMainChain::CreateCoinBase(const CLKAddress &addr) const {
 
-	}
+    CEntry entry;
+    entry.SetType (NODE_VERSION);
+
+    entry.SetCreateTime(time(nullptr));
+
+    entry.ClearSender();
+
+    entry.SetReceiver(addr);
+
+    entry.SetValue(m_params.CoinBasePay(GetBestHeight() + 1));
+
+    entry.SetFee(0);
+
+    return entry;
+
+}
+
+
+bool CMainChain::checkNewEntry(const CEntry &new_en) {
+
+    uint256 hashNewEn = new_en.GetEntryHash();
+    IF_FALSE(m_history.IsRepeate(new_en.GetEntryHash())) {
+
+        LOG(ERROR) << "new entry is repeate";
+        return false;
 
     }
 
-    return nullptr;
-    
+    m_history.NewTxHash(hashNewEn);
+
+    if (new_en.GetValue() < 0) {
+        LOG(ERROR) << "transfer value is invalid";
+        return false;
+    }
+
+
+    if (new_en.GetValue() > MAX_TRAN_LKT) {
+        LOG(ERROR) << "too more transfer value";
+        return false;
+    }
+
+
+    if (new_en.GetFee() > MAX_LKC_FEE) {
+        LOG(ERROR) << "too more transfer fee";
+        return false;
+    }
+
+
+    if (new_en.GetFee() < MIN_LKC_FEE) {
+        LOG(ERROR) << "too less transfer fee";
+        return false;
+    }
+
+
+    if (not new_en.IsBaseSign()) {
+
+        HN64 bal = m_mngBal.GetBal(new_en.GetSender());
+
+        HN64 pool_pay = m_mngEntrys.GetPoolPay (new_en.GetSender());
+
+        bal -= pool_pay;
+
+        if (bal < new_en.GetAmount()) {
+
+            LOG(ERROR) << "maybe en double pay, bal:[" << bal << "]";
+            return false;
+
+        }
+
+    }
+
+    return true;
 }

@@ -7,8 +7,8 @@
 #include <hlog.h>
 #include <hfname.h>
 
-CMinerApp::CMinerApp(HINT argc, HCHAR* argv[])
-    : HCHapp(argc, argv){
+CMinerApp::CMinerApp(HINT argc, const HCHAR* argv[])
+    : HCApp(argc, argv){
 
     m_pServer = new CMinerServer();
     CHECK_NEWPOINT(m_pServer);
@@ -31,7 +31,7 @@ HBOOL CMinerApp::Run() {
 
 	        m_pServer->RunServer ();
 
-            sleep(1);
+            //sleep(36);
 
         } catch(HCException& ex) {
 
@@ -39,6 +39,8 @@ HBOOL CMinerApp::Run() {
             // throw a exception;
 
 	    }
+
+        sleep(36);
 
     }
 

@@ -42,9 +42,9 @@ int CPostWorkService::PackReturn(SCM_DATA* res) throw (HCException){
 
     if (m_str.empty()) {
 
-	LOG(INFO) << "return null, set to 'error'";
-	m_str = "\"error\"";
-	
+        LOG(INFO) << "return null, set to 'error'";
+        m_str = "DROP";
+
     }
 
     RESET_ODATAP(res);
@@ -63,50 +63,18 @@ int CPostWorkService::PackReturn(SCM_DATA* res) throw (HCException){
 
 int CHeightBlockService::Excute() throw (HCException) {
 
-    m_str = so_config->HeightBlock(m_str);
+    try {
 
-    FILE * pf = fopen("abcd", "a+");
-    fwrite(m_str.c_str(), 1, m_str.length(), pf);
-    fclose(pf);
+        m_str = so_config->HeightBlock(m_str);
 
-    return 0;
+    } catch (const HCException& ex) {
 
-}
+        LOG(ERROR)<< GetName() << " get an exception: " << ex.what();
+        m_str = "DROP";
 
-
-int CQueryAccount::Excute() throw (HCException) {
-
-    m_str = so_config->QueryAccount(m_str);
+    }
 
     return 0;
 
 }
-
-
-int CGetTxs::Excute() throw (HCException) {
-
-    m_str = so_config->GetTxs (m_str);
-
-    return 0;
-
-}
-
-
-int CAccountInfo::Excute() throw (HCException) {
-
-    m_str = so_config->AccountInfo(m_str);
-
-    return 0;
-
-}
-
-
-
-
-
-
-
-
-
-
 

@@ -14,6 +14,10 @@
 
 #include <json/json.h>
 
+#include <serialize.h>
+
+#include <hcrypto.h>
+
 using namespace HUIBASE::HTTP;
 
 using namespace HUIBASE::CRYPTO;
@@ -319,12 +323,18 @@ HRET CMinerServer::calBlock() throw (HCException) {
 HRET CMinerServer::postWork() throw (HCException) {
     HFUN_BEGIN;
 
+    using namespace HUIBASE::CRYPTO;
+
     HSTR strUrl = HCStr::Format("http://%s:%d/postwork",
                                 m_strRpcIp.c_str(), m_iRpcPort);
 
-    //LOG_NORMAL("block: %s", m_block.ToJsonString());
+    CDataStream ds(SER_NETWORK, NODE_VERSION);
+    ds << m_block;
 
-    HSTR strData = m_block.ToJsonString();
+    HSTR strWork;
+    HEncode(ds.str(), strWork);
+
+    HSTR strData = HCStr::Format("work=%s", strWork.c_str());
     LOG_NORMAL("post work request: [%s]", strData.c_str());
 
     HRET cb = HERR_NO(OK);

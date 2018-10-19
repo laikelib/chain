@@ -5,24 +5,25 @@
 #include <huibase.h>
 #include <hsingleton.hpp>
 #include <chainCore.h>
-#include <db.h>
+#include <list>
 
 #include <uint256.h>
 #include <blockindex.h>
+#include <lktmap.h>
+#include <blockchaininfo.h>
+#include <balmap.h>
+#include <entrymng.h>
+#include <entryhistory.h>
 
 #include "mainParams.h"
 #include "cointxdb.h"
-
-#include <wallet.h>
 
 using namespace HUIBASE;
 
 class CMainChain : public CChainCore {
 public:
-    using BLOCKINDEXMAP = std::map<uint256, CBlockIndex*>;
-
     using UNENTRYLIST = std::list<CEntry>;
-    
+
 public:
     CMainChain ();
 
@@ -34,42 +35,38 @@ public:
 
     HSTR PostWork(HCSTRR str);
 
-    HSTR NewAccount();
-
-    HSTR AccountInfo (HCSTRR str);
-
     HSTR GetHeight ();
 
     HSTR HeightBlock (HCSTRR str);
 
-    HSTR QueryAccount(HCSTRR str);
+    HSTR GetBal (HCSTRR strAddr);
 
-    HSTR GetTxs (HCSTRR str);
+    HSTR HashTx (HCSTRR strHash);
 
-    HSTR Transfer (HDOUBLE dValue, HDOUBLE dFee, HCSTRR strSender, HCSTRR strReceiver,
-		   HCSTRR strPublic,  HCSTRR strPrivate);
+    HSTR LkInfo ();
 
+    HSTR newTx (HCSTRR str);
 
-    HSTR InnerTransfer (HDOUBLE dValue, HDOUBLE dFee, HCSTRR strSender, HCSTRR strReceiver);
-
-public:    
+ private:
     virtual HRET initLast ();
-
-    HRET verifyDatabase ();
 
     HRET loadBlockChain ();
 
-    HRET loadWallet ();
+    HRET checkBlockChain();
+
+    HRET initHistory ();
+
+    HRET initBalance ();
+
+    HRET checkBalance () const;
+
+ public:
 
     HRET Shutdown ();
 
     CBlockIndex* InsertBlockIndex (const uint256& hash);
 
-    CWallet* GetWallet () { return m_pWallet; }
-
     CBlock* GetNewBlock (HCSTRR strName);
-
-    void GetWillBlockEntrys (std::vector<CEntry>& entrys);
 
     HINT GetTargetBits ();
 
@@ -80,81 +77,87 @@ public:
     bool AcceptBlock (CBlock* pbk);
 
     bool ProcessBlock (CBlock* pbk);
-    
+
     // get genesis information
     uint256 GetGenesisBlockHash () const { return m_params.GetGenesisBlockHash(); }
 
-    
+
     const CBlock& GenesisBlock () const { return m_params.GenesisBlock (); }
 
     void SetGenesisIndex (CBlockIndex* pGenesisIndex) {
-	m_pGenesisIndex = pGenesisIndex;
+        m_info.SetGenesisIndex(pGenesisIndex);
     }
 
     const CBlockIndex* GetGenesisIndex () const {
-	return m_pGenesisIndex; 
+        return m_info.GetGenesisIndex();
     }
 
 public:
-    void initBestIndexAndHeight ();
-    
-    // blockchain 
-    const BLOCKINDEXMAP& GetBlockIndexMap () const { return m_mapBlockIndex; }
+    void initBestIndex ();
 
-    BLOCKINDEXMAP& GetBlockIndexMap () { return m_mapBlockIndex; }
+    HBOOL IsBlockIndexEmpty() const { return m_mapBlockIndex.IsEmpty(); }
+
+    HBOOL HasBlock (const uint256& hash) const { return m_mapBlockIndex.HasBlock(hash); }
 
     void SetHashBest (const uint256& hashBest) {
-	m_hashBest = hashBest;
+        m_info.SetBestHash(hashBest);
     }
 
     const uint256& GetHashBest () const {
-	return m_hashBest;
+        return m_info.GetBestHash();
     }
 
     void SetBestIndex (CBlockIndex* pBestIndex) {
-	m_pBestIndex = pBestIndex;
+        m_info.SetBestIndex(pBestIndex);
     }
 
     const CBlockIndex* GetBestIndex () const {
-	return m_pBestIndex;
+        return m_info.GetBestIndex();
     }
 
-    void SetBestHeight (HINT nHeight) { m_nBestHeight = nHeight; }
+    const uint256& GetHashBestRoot () const {
 
-    HINT GetBestHeight () const { return m_nBestHeight; }
+        return m_info.GetBestRootHash ();
+
+    }
+
+    void SetHashBestRoot (const uint256& hashBestRoot) {
+
+        m_info.SetBestRootHash(hashBestRoot);
+
+    }
+
+    HINT GetBestHeight () const { return m_info.GetCurrentHeight(); }
+
+    HRET SetIndexHeight (const uint256& hash, HUINT nHeight);
 
     bool AddToBlockIndex (CBlock& block, unsigned int nFile, unsigned int nBlockPos);
 
     bool SetBestChain (CCoinTxdb& txdb, CBlock& block, CBlockIndex* pindexNew);
 
-private:
+ private:
     void displayBlockChain ();
 
-    void removeBlockedEntrys (const std::vector<CEntry>& entrys);
-
     CBlockIndex* GetBlockIndex (HUINT nHeight);
-    
-private:
+
+    CEntry CreateCoinBase (const CLKAddress& addr) const;
+
+    bool checkNewEntry (const CEntry& new_en);
+
+ private:
     HBOOL m_isInited;
-
-    HSTR m_strWalletDicFileName;
-
-    BLOCKINDEXMAP m_mapBlockIndex;
 
     CMainParams m_params;
 
-    CBlockIndex* m_pGenesisIndex = nullptr;
+    CBlockIndexMap m_mapBlockIndex;
 
-    uint256 m_hashBest;
+    CBlockChainInfo m_info;
 
-    CBlockIndex* m_pBestIndex = nullptr;
+    CBalMng m_mngBal;
 
-    HINT m_nBestHeight = 0;
+    CEntryMng m_mngEntrys;
 
-    CWallet* m_pWallet = nullptr;
-
-    UNENTRYLIST m_listUnentry;
-    
+    CEntryHistory m_history;
 };
 
 

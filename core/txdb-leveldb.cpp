@@ -31,7 +31,7 @@ static void init_blockindex(leveldb::Options& options, bool fRemoveOld = false, 
     curDic.GoToParent ();
     curDic.Append("data");
     HCDic dataDic = curDic;
-    curDic.Append("txleveldb");
+    curDic.Append("laikelibindex");
 
     LOG(INFO) << "leveldb database: " << curDic.GetName();
 
@@ -61,8 +61,8 @@ static void init_blockindex(leveldb::Options& options, bool fRemoveOld = false, 
     }
 
     curDic.CreateDic();
-    LOG(INFO) << "Opening levelDB in " << curDic.GetName();
     leveldb::Status status = leveldb::DB::Open(options, curDic.GetName().c_str(), &txdb);
+    LOG(INFO) << "Opening levelDB in " << curDic.GetName() << ", status: " << status.ok();
     HASSERT_THROW_MSG (status.ok(), "init_blockindex(): error opening database environment", MISS_FILE);
 }
 
@@ -75,9 +75,9 @@ CTxDB::CTxDB(const char* pszMode)
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
 
     if (txdb) {
-	
+
         pdb = txdb;
-	
+
         return;
     }
 
@@ -222,3 +222,16 @@ bool CTxDB::WriteHashBestChain(uint256 hashBestChain) {
 
 }
 
+
+bool CTxDB::WriteHashBestRoot(const uint256 &hashBestRoot) {
+
+    return Write(string("hashBestRoot"), hashBestRoot);
+
+}
+
+
+bool CTxDB::ReadHashBestRoot(uint256 &hashBestRoot) {
+
+    return Read(string("hashBestRoot"), hashBestRoot);
+
+}

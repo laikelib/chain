@@ -192,6 +192,8 @@ public:
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
 
+    bool WriteHashBestRoot (const uint256& hashBestRoot);
+    bool ReadHashBestRoot (uint256& hashBestRoot);
 
 
 };

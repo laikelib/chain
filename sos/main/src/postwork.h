@@ -37,37 +37,4 @@ public:
 };
 
 
-class CQueryAccount : public CPostWorkService {
-public:
-    CQueryAccount (HCSTRR strName)
-	: CPostWorkService(strName) { }
-
-
-    virtual int Excute () throw (HCException);
-
-
-};
-
-
-class CGetTxs : public CPostWorkService {
-public:
-    CGetTxs(HCSTRR strName)
-	: CPostWorkService(strName) { }
-
-    virtual int Excute () throw (HCException);
-
-};
-
-
-class CAccountInfo : public CPostWorkService {
-public:
-    CAccountInfo (HCSTRR strName)
-	: CPostWorkService (strName) {  }
-
-    virtual int Excute () throw (HCException);
-
-};
-
-
-#endif 
-
+#endif

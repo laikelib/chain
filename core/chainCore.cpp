@@ -4,7 +4,6 @@
 #include <hstr.h>
 #include <hfname.h>
 #include <huibase.h>
-#include "db.h"
 
 using namespace HUIBASE;
 
@@ -31,8 +30,6 @@ HRET CChainCore::Init () {
 
 
 HRET CChainCore::Shutdown() {
-
-    bitdb.Flush(false);
 
     HRETURN_OK;
 }

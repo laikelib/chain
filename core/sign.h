@@ -29,6 +29,8 @@ class CSign {
 public:
     CSign () {}
 
+    CSign (const CSign& sign);
+
     bool EmptySignature () const { return m_sign.empty(); }
 
     bool IsAddressSign (const CLKAddress& addr) const;

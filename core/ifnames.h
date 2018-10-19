@@ -21,11 +21,18 @@ static constexpr HINT NODE_VERSION = 1;
 static constexpr HINT LDB_VERSION = 1;
 
 
+// version code for laikelib
+static constexpr HINT LK_VERSION = 1;
+
+// version code for compile
+static constexpr HINT LK_CP_VERSION = 1;
+
 // version code for protocol
 static constexpr HINT PTL_VERSION = 1;
 
 // version code for block
 static constexpr HINT BLOCK_VERSION = 1;
+
 
 
 // version code for wallet
@@ -44,7 +51,10 @@ static constexpr HN64 MIN_LKC_FEE = 0.0001 * LKT_COIN;
 static constexpr HN64 MAX_LKC_FEE = 10 * LKT_COIN;
 
 
-static constexpr HINT MAX_ENTRY_COUNT = 1000;
+static constexpr HINT MAX_ENTRY_COUNT = 10;
+
+
+static constexpr HINT BLOCK_ENTRY_NUM = 10;
 
 
 typedef enum {

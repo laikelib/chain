@@ -8,6 +8,13 @@
 
 using namespace HUIBASE;
 
+
+CSign::CSign(const CSign& sign)
+    : m_pubkey(sign.m_pubkey), m_sign(sign.m_sign) {
+
+}
+
+
 bool CSign::IsAddressSign(const CLKAddress& addr) const {
 
     CLKAddress sign_addr;

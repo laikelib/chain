@@ -8,7 +8,7 @@
 using namespace HUIBASE;
 
 // sid, cid
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
 
 	// params check.
 	if (argc < sic_counts ) {

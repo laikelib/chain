@@ -24,6 +24,28 @@ protected:
 
 };
 
+
+class CGetBalService : public CBlockTempService {
+ public:
+    CGetBalService (HCSTRR strAddr)
+        : CBlockTempService (strAddr) { }
+
+    virtual int Excute () throw (HCException);
+
+
+};
+
+
+class CHashTxService : public CBlockTempService {
+ public:
+    CHashTxService (HCSTRR strHash)
+        : CBlockTempService (strHash) {  }
+
+    virtual int Excute () throw (HCException);
+};
+
+
+
 #endif 
 
 

@@ -14,6 +14,8 @@ class CGetHeightCgi : public CCommand {
 
     HRET Work () throw (HCException);
 
+    virtual HSTR GetRes () const throw (HCException);
+
 };
 
 

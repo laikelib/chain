@@ -18,4 +18,12 @@ HRET CGetHeightCgi::Work() throw (HCException) {
     HRETURN_OK;
 }
 
+
+HSTR  CGetHeightCgi::GetRes () const throw (HCException) {
+
+    return m_res;
+
+}
+
+
 REGISTE_COMMAND(getheight, CGetHeightCgi);

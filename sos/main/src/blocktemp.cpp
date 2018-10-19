@@ -14,10 +14,10 @@ int CBlockTempService::ParseInput(SCM_DATA* data) throw (HCException){
     memcpy(buf, data->idata, data->ilen);
 
     LOG(INFO) << GetName() << ":ParseInput input request: [" <<
-	buf << "]";
+        buf << "]";
 
     m_strIn = buf;
-    
+
     return 0;
 
 }
@@ -25,7 +25,7 @@ int CBlockTempService::ParseInput(SCM_DATA* data) throw (HCException){
 
 int CBlockTempService::Excute() throw (HCException){
     LOG(INFO) << "CBlockTempService::Excute Begin...";
-    
+
     m_strTemp = so_config->GetBlockTemplate (m_strIn);
 
     LOG(INFO) << "CBlockTempService::Excute End...";
@@ -38,11 +38,11 @@ int CBlockTempService::PackReturn(SCM_DATA* res) throw (HCException){
 
     if (m_strTemp.empty()) {
 
-	LOG(ERROR) << "m_strTemp is null, set to 'error'";
-	m_strTemp = "error";
-	
+        LOG(ERROR) << "m_strTemp is null, set to 'error'";
+        m_strTemp = "error";
+
     }
-    
+
     RESET_ODATAP(res);
 
     strcpy(res->odata, m_strTemp.c_str());
@@ -57,8 +57,27 @@ int CBlockTempService::PackReturn(SCM_DATA* res) throw (HCException){
 
 
 
+int CGetBalService::Excute() throw (HCException) {
+    LOG(INFO) << "CGetBalService::Excute Begin...";
+
+    m_strTemp = so_config->GetBal(m_strIn);
+
+    LOG(INFO) << "CGetBalService::Excute End...";
+
+    return 0;
+}
 
 
 
+int CHashTxService::Excute() throw (HCException) {
+    LOG(INFO) << __FUNCTION__ << " Begin...";
 
+    try {
+        m_strTemp = so_config->HashTx(m_strIn);
+    } catch (const HCException& ex) {
+        m_strTemp = "\"DROP\"";
+    }
 
+    LOG(INFO) << __FUNCTION__ << " End ...";
+    return 0;
+}

@@ -11,9 +11,9 @@ using namespace HUIBASE;
 
 
 class CMinerServer;
-class CMinerApp : public HCHapp {
+class CMinerApp : public HCApp {
 public:
-    CMinerApp(HINT argc, HCHAR* argv[]);
+    CMinerApp(HINT argc, const HCHAR* argv[]);
 
     ~CMinerApp();
 

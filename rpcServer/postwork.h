@@ -17,11 +17,12 @@ class CPostWorkCgi : public CCommand {
 
     virtual HRET Work () throw (HCException) override;
 
-    virtual HSTR GetRes () const throw (HCException) override;
+    //virtual HSTR GetRes () const throw (HCException) override;
 
  private:
     HSTR m_str;
 
+    HSTR m_src;
 };
 
 

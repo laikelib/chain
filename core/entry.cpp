@@ -12,6 +12,13 @@ CEntry::CEntry() {
 }
 
 
+CEntry::CEntry(const CEntry& entry)
+    : m_type(entry.m_type), m_createTime(entry.m_createTime), m_value(entry.m_value), m_fee(entry.m_fee), m_sender(entry.m_sender), m_receiver(entry.m_receiver), m_sign(entry.m_sign){
+
+
+}
+
+
 CEntry::CEntry(HN64 nValue, HN64 nFee, const CLKAddress& addrSender, const CLKAddress& addrReceiver) {
 
     m_type = 1;

@@ -6,8 +6,8 @@
 
 #include "blocktemp.h"
 #include "postwork.h"
-#include "newaccount.h"
-#include "transfer.h"
+#include "getheight.h"
+#include "newtx.h"
 
 #include <innerso.h>
 
@@ -39,24 +39,6 @@ DECLARE_FUN(post_work)
 }
 
 
-DECLARE_FUN(new_account)
-{
-
-    DeclareService<CNewAccountService>(data, "new_account");
-
-    return 0;
-}
-
-DECLARE_FUN(account_info)
-{
-
-    DeclareService<CAccountInfo>(data, "account_info");
-
-    return 0;
-    
-}
-
-
 DECLARE_FUN(get_height)
 {
 
@@ -67,57 +49,53 @@ DECLARE_FUN(get_height)
 
 DECLARE_FUN(height_block)
 {
+
     DeclareService<CHeightBlockService>(data, "height_block");
 
     return 0;
 }
 
 
-DECLARE_FUN(query_account)
+DECLARE_FUN(get_bal)
 {
 
-    DeclareService<CQueryAccount>(data, "query_account");
-
-    return 0;
-}
-
-DECLARE_FUN(get_txs)
-{
-
-    DeclareService<CGetTxs>(data, "get_txs");
-
-    return 0;
-}
-
-
-DECLARE_FUN(transfer) {
-
-    DeclareService<CTransfer>(data, "transfer");
+    DeclareService<CGetBalService>(data, "get_bal");
 
     return 0;
 
 }
 
 
-DECLARE_FUN(inner_transfer)
+DECLARE_FUN(hash_tx)
 {
-    
-    DeclareService<CInnerTransfer>(data, "inner_transfer");
+    DeclareService<CHashTxService>(data, "hash_tx");
 
     return 0;
+}
+
+
+DECLARE_FUN(lk_info)
+{
+
+    DeclareService<CLkInfoService>(data, "lk_info");
+
+    return 0;
+
+}
+
+
+DECLARE_FUN(new_tx)
+{
+
+    DeclareService<CNewTxService>(data, "new_tx");
+
+    return 0;
+
 }
 
 
 DECLARE_UNINIT() 
 {
-    int fd = open("abc", O_CREAT | O_RDWR, 0644);
-
-    ssize_t cb = write(fd, "end...", 6);
-
-    (void)cb;
-
-    close(fd);
-
 
     (void)so_config->Shutdown();
 

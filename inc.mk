@@ -1,6 +1,6 @@
 ##===================================================================##
 ## File Name: inc.mk
-## Create Author: Tom Hui tomhui1009@yahoo.com 8613760232170
+## Create Author: Tom Hui
 ## Create Date: Tue Sep 12 1359 2015
 ## Description:
 ##		Makefile header. This include some declaration for using in 
@@ -40,13 +40,9 @@ OS_NAME = $(shell uname)
 
 
 CXX_INCLUDE += -I/data/laikelib/chain/deps/include \
-	-I/data/laikelib/chain/deps/glog/build \
-	-I/data/laikelib/chain/deps/openssl/include \
-	-I/data/laikelib/chain/deps/libconfig/lib \
-	-I/data/laikelib/chain/deps/cgicc
-
-LINK_CXX_LIBS += /data/laikelib/chain/deps/libconfig/lib/.libs/libconfig++.a \
-	/data/laikelib/chain/deps/glog/build/libglog.a
+	-I/data/laikelib/chain/deps/glog/src
+LINK_CXX_LIBS += /data/laikelib/chain/deps/lib/libconfig++.a \
+	/data/laikelib/chain/deps/glog/.libs/libglog.a
 
 
 TTYPE = AFILE
