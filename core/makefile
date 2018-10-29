@@ -14,8 +14,8 @@ SRC = $(wildcard *.cpp)
 
 OBJS = ${patsubst %.cpp, %.o, ${SRC}}
 
-CXX_INCLUDE += -I../../huibase/src -I../deps/glog/src -I../deps/openssl/include \
-	-I../deps/db48/build_unix -I../deps/leveldb/include -I../deps/leveldb/helpers -I../deps/jsoncpp/include
+CXX_INCLUDE += -I../../huibase/src -I../../huibase/crypto -I../deps/glog/src -I../deps/openssl/include \
+-I../deps/db48/build_unix -I../deps/leveldb/include -I../deps/leveldb/helpers -I../deps/jsoncpp/include -I../deps/secp256k1/include
 LINK_CXX_LIBS += -L../../huibase/lib -lglog -ldb_cxx -lleveldb
 
 ifeq "$(OS_TYPE)" "Darwin"

@@ -15,8 +15,42 @@
 #include <des.h>
 #include <base64.h>
 #include <hadaptation.h>
+#include <hfname.h>
+#include <hlog.h>
 
 using namespace HUIBASE::CRYPTO;
+
+
+HSTR CWalletMng::SetNewAccount (const CKey& key, HCSTRR strPass) {
+
+    CPubKey pubkey = key.GetPubKey();
+    CPrivKey prikey = key.GetPrivKey();
+
+    CLKAddress addr;
+    addr.Set(pubkey.GetID());
+
+    HSTR strAddr = addr.ToString();
+
+    HSTR strFileName = m_strDataPath + "/" + strAddr + ".key";
+
+    IF_TRUE(HCFileNameBase::IsExists(strFileName)) {
+
+        LOG_WARNNING("address[%s] is here", strAddr.c_str());
+        return strAddr;
+
+    }
+
+    HSTR strPub = EncodeBase64(&pubkey[0], pubkey.size());
+
+    HSTR strPri = EncodeBase64(&prikey[0], prikey.size());
+
+    return SetAccount(strAddr, strPub, strPri, strPass);
+
+
+
+}
+
+
 
 HSTR CWalletMng::NewAccount(HCSTRR strPass) {
 
@@ -38,20 +72,8 @@ HSTR CWalletMng::NewAccount(HCSTRR strPass) {
 
     CKey secret;
     secret.MakeNewKey(true);
-    CPubKey pubkey = secret.GetPubKey();
-    CPrivKey prikey = secret.GetPrivKey();
 
-    CLKAddress addr;
-    addr.Set(pubkey.GetID());
-
-    HSTR strAddr = addr.ToString();
-
-    HSTR strPub = EncodeBase64(&pubkey[0], pubkey.size());
-
-    HSTR strPri = EncodeBase64(&prikey[0], prikey.size());
-
-    return SetAccount(strAddr, strPub, strPri, strPass);
-
+    return SetNewAccount(secret, strPass);
 }
 
 

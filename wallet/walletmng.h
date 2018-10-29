@@ -7,6 +7,7 @@
 #include <hfname.h>
 #include <hsingleton.hpp>
 #include <event.h>
+#include <key.h>
 
 using namespace HUIBASE;
 
@@ -14,6 +15,8 @@ using namespace HUIBASE;
 class CWalletMng {
  public:
     CWalletMng () { }
+
+    HSTR SetNewAccount (const CKey& key, HCSTRR strPass);
 
     HSTR NewAccount (HCSTRR strPass);
 
